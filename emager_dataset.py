@@ -1,6 +1,7 @@
 import numpy as np
 import data_processing as dp
 import quantization as dc
+import emager_utils as eutils
 import logging as log
 import os
 
@@ -105,8 +106,9 @@ def generate_raw_validation_data(
     Returns a tuple of generated data: (data, labels), and saves the numpy arrays to disk in `output_dir`
     """
 
-    decim = 1000 // len(transform_fn(np.zeros((1000, 64))))
-
+    
+    decim = eutils.get_transform_decimation(transform_fn)
+    
     # Save raw validation data
     data = load_emager_data(emager_path, subject, session)
     raw_data, labels = dp.extract_labels(data)

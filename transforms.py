@@ -27,7 +27,6 @@ def root_processing(data: np.ndarray) -> np.ndarray:
     data = default_processing(data)
     return dq.nroot_c(data, 3.0, np.max(data)).astype(np.uint8)
 
-
 transforms_lut = {
     "default": default_processing,
     "root": root_processing,
