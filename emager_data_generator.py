@@ -136,7 +136,7 @@ class EmagerDataGenerator:
             )
         except Exception as err:
             log.warning(f"{err} : Settings set to sensible defaults.")
-            self.r.set(emager_utils.BATCH_KEY, 250)
+            self.r.set(emager_utils.BATCH_KEY, 150)
             self.r.set(emager_utils.FS_KEY, 1000)
             self.update_params()
 
