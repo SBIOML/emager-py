@@ -3,7 +3,7 @@ import numpy as np
 
 SAMPLES_FIFO_NAME = "emager_samples_fifo"
 LABELS_FIFO_NAME = "emager_labels_fifo"
-FS_KEY = "emager_sample_rate"
+FS_KEY = "rhd_sample_rate"
 BATCH_KEY = "emager_samples_batch"
 GENERATED_SAMPLES_KEY = "emager_samples_n"
 TRANSFORM_KEY = "emager_transform"

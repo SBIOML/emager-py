@@ -10,9 +10,7 @@ import data_processing as dp
 
 
 class EmagerDataGenerator:
-    def __init__(
-        self, host: str, dataset_root: str, shuffle: bool = True, n_repeats: int = 10
-    ):
+    def __init__(self, host: str, dataset_root: str, shuffle: bool = True):
         """
         This class allows you to simulate a live sampling process. It does not apply any SigProc.
         It is meant to run on a host PC, not on an embedded device.
@@ -36,7 +34,6 @@ class EmagerDataGenerator:
         self.labels = np.ndarray((1))
 
         self.shuffle = shuffle
-        self.repeats = n_repeats
 
         self.update_params()
 
@@ -88,24 +85,16 @@ class EmagerDataGenerator:
         lpush_time = self.__batch / self.__sampling_rate
         log.info(f"Serving data every {lpush_time:.4f} s")
 
-        # start_time = time.perf_counter()
-        for i in range(self.repeats):
-            # rep_start_time = time.perf_counter()
-            for emg, label in self.generate_data():
-                t0 = time.perf_counter()
-                p = self.r.pipeline()
-                p.lpush(emager_utils.SAMPLES_FIFO_NAME, emg.tobytes())
-                p.lpush(emager_utils.LABELS_FIFO_NAME, label.tobytes())
-                p.execute()
-                dt = time.perf_counter() - t0
-                if dt < lpush_time:
-                    time.sleep(lpush_time - dt)
-            # log.info(
-            #    f"Finished serving repeat {i} in {time.perf_counter()-rep_start_time:.3f} s"
-            # )
-        # log.info(
-        #    f"Finished serving {self.repeats} times in {time.perf_counter()-start_time:.3f} s"
-        # )
+        # rep_start_time = time.perf_counter()
+        for emg, label in self.generate_data():
+            t0 = time.perf_counter()
+            p = self.r.pipeline()
+            p.lpush(emager_utils.SAMPLES_FIFO_NAME, emg.tobytes())
+            p.lpush(emager_utils.LABELS_FIFO_NAME, label.tobytes())
+            p.execute()
+            dt = time.perf_counter() - t0
+            if dt < lpush_time:
+                time.sleep(lpush_time - dt)
         return True
 
     def clear_data(self):
