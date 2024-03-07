@@ -2,7 +2,28 @@
 
 [![pdm-managed](https://img.shields.io/badge/pdm-managed-blueviolet)](https://pdm-project.org)
 
-This repository is meant to be submoduled in other projects that interact with EMaGer dataset. Feel free to contribute to it!
+This repo is a library to interact with EMaGer HD-sEMG cuff as well as the EMaGer Dataset. Feel free to contribute to it!
+
+## Setting up
+
+The repo is made with [PDM](https://pdm-project.org/latest/) in mind. It allows to easily create, develop, install and publish Python projects. It also handles dependency management. Let's say you want to create `my_test_project` and use `emager-py`.
+
+First, you'd create the project directory:
+
+```bash
+mkdir my_test_project
+cd my_test_project
+```
+
+Then, install PDM, then run:
+
+```bash
+pdm venv create
+pdm use .venv/bin/python
+eval $(pdm venv activate)
+pdm init # now answer the questions
+pdm add -e "git+https://github.com/SBIOML/emager-py@main" --dev
+```
 
 ## Repository structure
 
