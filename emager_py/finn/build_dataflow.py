@@ -9,7 +9,8 @@ import finn.builder.build_dataflow_config as build_cfg
 
 sp.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
 
-import utils.config  # noqa: E402 # from emager-pytorch :/
+import utils
+import utils.config as config  # noqa: E402 # from emager-pytorch :/
 import graphs.models.qemager as qemager  # noqa: E402
 
 from emager_py import dataset, transforms  # noqa: E402

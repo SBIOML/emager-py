@@ -70,7 +70,7 @@ class RealTimeOscilloscope:
             self.plots.append(graph)
         # Set up a QTimer to update the plot at the desired refresh rate
         self.timer = QTimer()
-        self.timer.setTimerType(Qt.PreciseTimer)
+        self.timer.setTimerType(Qt.TimerType.PreciseTimer)
         self.timer.timeout.connect(self.update)
         self.timer.start(1000 // refresh_rate)
         self.t2 = time.time()
@@ -112,7 +112,7 @@ class RealTimeOscilloscope:
         # print("time update:", time.time()-self.t1)
 
     def run(self):
-        self.app.exec_()
+        self.app.exec()
 
 
 def run_remote_finn(conn: fabric.Connection, script: str):
