@@ -2,8 +2,7 @@ from qonnx.core.modelwrapper import ModelWrapper
 import torch
 import numpy as np
 
-import emager_dataset
-import data_processing as dp
+from emager_py import dataset
 
 
 def infer_brevitas(model: torch.nn.Module, current_inp: np.ndarray):
@@ -43,7 +42,7 @@ def validate_brevitas_qonnx(
     onnx_model = ModelWrapper(onnx_path)
     brevitas_model.eval()
 
-    data, labels = emager_dataset.generate_processed_validation_data(
+    data, labels = dataset.generate_processed_validation_data(
         emager_path, subject, session, transform_fn, save=False
     )
     data, labels = data[:n_samples], labels[:n_samples]

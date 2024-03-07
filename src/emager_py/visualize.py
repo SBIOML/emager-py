@@ -2,15 +2,15 @@ import time
 import numpy as np
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui
-from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import QTimer, Qt
+from PyQt6.QtWidgets import QApplication
+from PyQt6.QtCore import QTimer, Qt
 import threading
 
 import fabric
 from invoke import Responder
 
-import emager_utils as eutils
-import streamers
+import emager_py.utils as eutils
+import emager_py.streamers as streamers
 
 
 class RealTimeOscilloscope:
@@ -140,7 +140,7 @@ def run_remote_finn(conn: fabric.Connection, script: str):
 
 
 if __name__ == "__main__":
-    import emager_data_generator as edg
+    import emager_py.data_generator as edg
 
     eutils.set_logging()
 

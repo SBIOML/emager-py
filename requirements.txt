@@ -1,6 +1,0 @@
-numpy
-scipy
-redis[hiredis]
-pyQt5
-pyqtgraph
-pyserial

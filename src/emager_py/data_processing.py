@@ -1,9 +1,9 @@
 import numpy as np
 from scipy import signal
 
-import emager_dataset as ed
-import quantization as dq
-import emager_utils
+import emager_py.dataset as ed
+import emager_py.quantization as dq
+import emager_py.utils as utils
 
 
 def filter_utility(data, fs=1000, Q=30, notch_freq=60):
@@ -191,7 +191,7 @@ if __name__ == "__main__":
     ret = filter_utility(np.zeros((1000, 10)))
 
     data_array = ed.load_emager_data(
-        emager_utils.DATASETS_ROOT + "EMAGER/", "000", "002", differential=False
+        utils.DATASETS_ROOT + "EMAGER/", "000", "002", differential=False
     )
     print(data_array.shape)
     # preprocess the data

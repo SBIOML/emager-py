@@ -4,9 +4,9 @@ import time
 import threading
 import logging as log
 
-import emager_utils
-import emager_dataset as ed
-import data_processing as dp
+import emager_py.utils as utils
+import emager_py.dataset as ed
+import emager_py.data_processing as dp
 
 
 class EmagerDataGenerator:
@@ -57,7 +57,7 @@ class EmagerDataGenerator:
         self.emg = emg.astype(np.int16)
         self.labels = labels.astype(np.uint8)
 
-        self.r.set(emager_utils.GENERATED_SAMPLES_KEY, len(self))
+        self.r.set(utils.GENERATED_SAMPLES_KEY, len(self))
 
         log.info(
             f"Prepared data of shape {self.emg.shape}, labels {self.labels.shape}."
@@ -89,8 +89,8 @@ class EmagerDataGenerator:
         for emg, label in self.generate_data():
             t0 = time.perf_counter()
             p = self.r.pipeline()
-            p.lpush(emager_utils.SAMPLES_FIFO_NAME, emg.tobytes())
-            p.lpush(emager_utils.LABELS_FIFO_NAME, label.tobytes())
+            p.lpush(utils.SAMPLES_FIFO_NAME, emg.tobytes())
+            p.lpush(utils.LABELS_FIFO_NAME, label.tobytes())
             p.execute()
             dt = time.perf_counter() - t0
             if dt < lpush_time:
@@ -101,8 +101,8 @@ class EmagerDataGenerator:
         """
         Clear Redis Samples and Labels FIFOs.
         """
-        self.r.delete(emager_utils.SAMPLES_FIFO_NAME)
-        self.r.delete(emager_utils.LABELS_FIFO_NAME)
+        self.r.delete(utils.SAMPLES_FIFO_NAME)
+        self.r.delete(utils.LABELS_FIFO_NAME)
 
     def get_serve_thread(self):
         """
@@ -117,16 +117,16 @@ class EmagerDataGenerator:
         Update data generation parameters from Redis.
         """
         try:
-            self.__batch = int(self.r.get(emager_utils.BATCH_KEY))
-            self.__sampling_rate = int(self.r.get(emager_utils.FS_KEY))
+            self.__batch = int(self.r.get(utils.BATCH_KEY))
+            self.__sampling_rate = int(self.r.get(utils.FS_KEY))
 
             log.info(
                 f"Parameters updated from Redis: batch size {self.__batch}, fs {self.__sampling_rate}"
             )
         except Exception as err:
             log.warning(f"{err} : Settings set to sensible defaults.")
-            self.r.set(emager_utils.BATCH_KEY, 150)
-            self.r.set(emager_utils.FS_KEY, 1000)
+            self.r.set(utils.BATCH_KEY, 150)
+            self.r.set(utils.FS_KEY, 1000)
             self.update_params()
 
     def __len__(self):
@@ -134,7 +134,7 @@ class EmagerDataGenerator:
 
 
 def main():
-    emager_utils.set_logging()
+    utils.set_logging()
 
     r = redis.Redis()
     r.flushall()
@@ -142,16 +142,16 @@ def main():
     time.sleep(1)
 
     host = "localhost"
-    dg = EmagerDataGenerator(host, emager_utils.DATASETS_ROOT + "EMAGER/", True)
+    dg = EmagerDataGenerator(host, utils.DATASETS_ROOT + "EMAGER/", True)
     emg, lab = dg.prepare_data("004", "001")
     dg.get_serve_thread().start()
 
     time.sleep(3)
 
-    print("Len of generated data: ", r.get(emager_utils.GENERATED_SAMPLES_KEY))
+    print("Len of generated data: ", r.get(utils.GENERATED_SAMPLES_KEY))
     for i in range(len(lab)):
-        data = r.rpop(emager_utils.SAMPLES_FIFO_NAME)
-        labels = r.rpop(emager_utils.LABELS_FIFO_NAME)
+        data = r.rpop(utils.SAMPLES_FIFO_NAME)
+        labels = r.rpop(utils.LABELS_FIFO_NAME)
 
         dec = np.frombuffer(data, dtype=np.int16).reshape((-1, 64))
         labels = np.frombuffer(labels, dtype=np.uint8)
