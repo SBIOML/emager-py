@@ -25,6 +25,10 @@ pdm init # now answer the questions
 pdm add -e "git+https://github.com/SBIOML/emager-py@main" --dev
 ```
 
+To update the dependencies: `pdm sync`
+
+You can also clone `emager-py` somewhere on your computer and instead do: `pdm add -e file:///path/to/emager-py --dev`. This could be more convenient to, for example, locally develop `emager-py` instead of pulling from git.
+
 ## Repository structure
 
 - `emager_dataset` contains utilities to load, inspect and export EMaGer data. It is usually the entry point to `emager-py`
