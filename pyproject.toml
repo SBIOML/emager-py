@@ -1,0 +1,19 @@
+[project]
+name = "emager-py"
+version = "0.1.0"
+description = "Library to use EMaGer dataset and HD-sEMG cuff."
+authors = [{ name = "SBIOML", email = "gabrielpgagne@gmail.com" }]
+dependencies = ["numpy>=1.24.4", "scipy", "redis[hiredis]", "pyserial"]
+requires-python = ">=3.8"
+readme = "README.md"
+license = { text = "MIT" }
+
+[project.optional-dependencies]
+full = ["fabric>=3.2.2", "pyqtgraph", "pyqt6>=6.6.1", "torch>=2.2.1"]
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm]
+distribution = true

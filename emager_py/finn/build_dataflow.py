@@ -1,25 +1,24 @@
 import torch
 import numpy as np
-import finn.builder.build_dataflow as build
-import finn.builder.build_dataflow_config as build_cfg
 import sys
 import os
 import subprocess as sp
 
-sys.path.append(os.path.dirname(__file__))
-sys.path.append(os.path.dirname(__file__) + "/../")
-sys.path.append(os.path.dirname(__file__) + "/../../")
+import finn.builder.build_dataflow as build
+import finn.builder.build_dataflow_config as build_cfg
 
 sp.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
 
-import utils.config  # noqa: E402
-import transforms  # noqa: E402
-import emager_dataset as ed  # noqa: E402
+import utils.config  # noqa: E402 # from emager-pytorch :/
 import graphs.models.qemager as qemager  # noqa: E402
-import model_validation as validation  # noqa: E402
-import model_transformations as mt  # noqa: E402
-import add_finn_board  # noqa: E402
-import custom_build_steps  # noqa: E402
+
+from emager_py import dataset, transforms  # noqa: E402
+from emager_py.finn import (  # noqa: E402
+    custom_build_steps,
+    add_finn_board,
+    model_transformations,
+    model_validation,
+)
 
 
 if __name__ == "__main__":
@@ -58,8 +57,8 @@ This script will:
     torch_model.load_state_dict(model_f)
 
     # Add topk on model
-    topk_model = mt.EmagerTopK(torch_model)
-    mt.save_model_as_qonnx(
+    topk_model = model_transformations.EmagerTopK(torch_model)
+    model_transformations.save_model_as_qonnx(
         topk_model,
         onnx_model,
         config.input_shape,
@@ -67,7 +66,7 @@ This script will:
         # show = True,
     )
     # Validate brevitas vs ONNX
-    validation.validate_brevitas_qonnx(
+    model_validation.validate_brevitas_qonnx(
         topk_model,
         onnx_model,
         config.emager_root,
@@ -77,7 +76,7 @@ This script will:
     )
 
     # Generate validation data and labels
-    pvd, pvl = ed.generate_processed_validation_data(
+    pvd, pvl = dataset.generate_processed_validation_data(
         config.emager_root,
         config.subject,
         config.session,
@@ -89,7 +88,7 @@ This script will:
     np.save(build_dir + "/input", pvd[:valid_samples])
     np.save(build_dir + "/expected_output", pred[:valid_samples])
 
-    ed.generate_raw_validation_data(
+    dataset.generate_raw_validation_data(
         config.emager_root,
         config.subject,
         config.session,

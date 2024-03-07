@@ -1,7 +1,7 @@
 import numpy as np
 
-import data_processing as dp
-import quantization as dq
+import emager_py.data_processing as dp
+import emager_py.quantization as dq
 
 
 def default_processing(data: np.ndarray) -> np.ndarray:
@@ -26,6 +26,7 @@ def root_processing(data: np.ndarray) -> np.ndarray:
     """
     data = default_processing(data)
     return dq.nroot_c(data, 3.0, np.max(data)).astype(np.uint8)
+
 
 transforms_lut = {
     "default": default_processing,

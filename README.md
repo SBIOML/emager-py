@@ -1,5 +1,7 @@
 # emager-py
 
+[![pdm-managed](https://img.shields.io/badge/pdm-managed-blueviolet)](https://pdm-project.org)
+
 This repository is meant to be submoduled in other projects that interact with EMaGer dataset. Feel free to contribute to it!
 
 ## Repository structure

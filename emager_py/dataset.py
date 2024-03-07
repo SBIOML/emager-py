@@ -1,7 +1,7 @@
 import numpy as np
-import data_processing as dp
-import quantization as dc
-import emager_utils as eutils
+import emager_py.data_processing as dp
+import emager_py.quantization as dc
+import emager_py.utils as eutils
 import logging as log
 import os
 
@@ -106,9 +106,8 @@ def generate_raw_validation_data(
     Returns a tuple of generated data: (data, labels), and saves the numpy arrays to disk in `output_dir`
     """
 
-    
     decim = eutils.get_transform_decimation(transform_fn)
-    
+
     # Save raw validation data
     data = load_emager_data(emager_path, subject, session)
     raw_data, labels = dp.extract_labels(data)
@@ -205,7 +204,7 @@ def process_then_save_all_test_train(dataset_path, out_path, transform=None):
             test_data = test[:, :-1]
             test_label = test[:, -1]
 
-            if transform != None:
+            if transform is not None:
                 train_data, test_data = transform(train_data), transform(test_data)
 
             trn_name = f"{out_path}/{subject}_{session}_train.npz"
@@ -236,7 +235,7 @@ def get_subjects(path):
         try:
             int(d)
             return True
-        except:
+        except ValueError:
             return False
 
     return list(filter(lambda d: filt(d), os.listdir(path)))

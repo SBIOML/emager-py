@@ -1,10 +1,9 @@
 import numpy as np
 import redis
 import serial
-import time
 import struct
 
-import emager_utils as eutils
+import emager_py.utils as eutils
 
 
 class EmagerStreamerInterface:

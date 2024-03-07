@@ -3,8 +3,9 @@ import finn.builder.build_dataflow_config as build_cfg
 from shutil import copytree, copy, make_archive
 import logging as log
 import os
-import custom_make_zynq_proj
 from fabric import Connection
+
+from emager_py.finn import custom_make_zynq_proj
 
 
 def step_custom_make_bd(model: ModelWrapper, cfg: build_cfg.DataflowBuildConfig):
