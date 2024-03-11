@@ -1,15 +1,13 @@
 import time
 import numpy as np
+import threading
+import logging as log
+
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QTimer, Qt
-import threading
 
-import fabric
-from invoke import Responder
-
-import emager_py.utils as eutils
 import emager_py.streamers as streamers
 
 
@@ -51,7 +49,6 @@ class RealTimeOscilloscope:
 
         # Define the number of rows and columns in the grid
         num_rows = 16
-        num_columns = 4
 
         # Create plots for each signal
         self.plots = []
@@ -89,7 +86,6 @@ class RealTimeOscilloscope:
                 break
             new_data = np.vstack((new_data, tmp_data))
         new_data = np.transpose(new_data)
-        print(new_data.shape)
         nb_pts = new_data.shape[1]
 
         if nb_pts == 0:
@@ -97,8 +93,8 @@ class RealTimeOscilloscope:
 
         self.tot_samples += nb_pts
         t = time.time()
-        print(
-            f"({t-self.t0:.3f} s) nsamples= {self.tot_samples}, dt={t - self.timestamp:.3f} s"
+        log.info(
+            f"({t-self.t0:.3f} s), new data shape={new_data.shape}, total samples={self.tot_samples}, dt={t - self.timestamp:.3f} s"
         )
         self.timestamp = t
 
@@ -115,64 +111,38 @@ class RealTimeOscilloscope:
         self.app.exec()
 
 
-def run_remote_finn(conn: fabric.Connection, script: str):
-    """
-    Run a remote Python script on PYNQ which uses FINN. On PYNQ, the ran script is `run.sh`,
-    which takes in a single argument, the python file to execute.
-
-    If there are some PYNQ errors, maybe some more stuff needs to be sourced from, PYNQ's `/etc/profile.d/`.
-
-    Example: `self.run_remote_finn(c, "validate_finn.py")` runs `bash run.sh validate_finn.py` on the remote PYNQ.
-    Assumes sudo password is `xilinx`.
-
-    Returns whatever `conn.run(...)` returns.
-    """
-    sudopass = Responder(
-        pattern=r"\[sudo\] password for .*:",
-        response="xilinx\n",
-    )
-    result = conn.run(
-        f"bash /home/xilinx/workspace/pynq-emg/run.sh {script}",
-        pty=True,
-        watchers=[sudopass],
-    )
-    return result
-
-
 if __name__ == "__main__":
     import emager_py.data_generator as edg
+    import emager_py.emager_redis as er
+    import emager_py.utils as eutils
+    import emager_py.finn.remote_operations as ro
 
     eutils.set_logging()
 
     GENERATE = True
-    HOST = "172.17.0.2" if GENERATE else "pynq"
+    HOST = er.get_docker_redis_ip() if GENERATE else "pynq"
     # HOST = "pynq"
 
+    r = er.EmagerRedis(HOST)
     dg = edg.EmagerDataGenerator(
         HOST, "/home/gabrielgagne/Documents/git/emager-pytorch/data/EMAGER/", False
     )
 
-    dg.r.flushall()
-    dg.r.set(eutils.GENERATED_SAMPLES_KEY, 1000 * 3600)
-    dg.r.set(eutils.FS_KEY, 1000)
-    dg.r.set(eutils.BATCH_KEY, 10)
-    dg.r.set(
-        eutils.BITSTREAM_KEY,
-        b"/home/xilinx/workspace/pynq-emg/bitfile/finn-accel.bit",
-    )
-    dg.r.set("rhd_enable_dsp", 0)
+    r.clear_data()
+    r.set_sampling_params(1000, 10)
+    r.set_pynq_params(b"/home/xilinx/workspace/pynq-emg/bitfile/finn-accel.bit", "None")
+    r.set("rhd_enable_dsp", 0)
 
     if GENERATE:
-        dg.prepare_data("004", "001")
         dg.update_params()
+        dg.prepare_data("004", "001")
         dg.get_serve_thread().start()
     else:
-        c = fabric.Connection("xilinx@pynq", connect_kwargs={"password": "xilinx"})
+        c = ro.connect_to_pynq()
         t = threading.Thread(
-            target=run_remote_finn, args=(c, "rhd-sampler/build/rhd_sampler")
+            target=ro.run_remote_finn, args=(c, "rhd-sampler/build/rhd_sampler")
         ).start()
 
     streamer = streamers.RedisStreamer(HOST)
-    oscilloscope = RealTimeOscilloscope(streamer, 64, 1000, 3, 30)
-
+    oscilloscope = RealTimeOscilloscope(streamer, 64, r.get_int(r.FS_KEY), 3, 30)
     oscilloscope.run()

@@ -6,6 +6,12 @@ This repo is a library to interact with EMaGer HD-sEMG cuff as well as the EMaGe
 
 ## Setting up
 
+### Redis
+
+Some modules in this library depend on [_Redis_](https://redis.io/), a fast and easy-to-use in-memory DB. Notably, it is used for extremely easy client/server interactions between a remote device (usually running sampling/on-board ML) and a host workstation for visualization, model training, etc.
+
+### PDM
+
 The repo is made with [PDM](https://pdm-project.org/latest/) in mind. It allows to easily create, develop, install and publish Python projects. It also handles dependency management. Let's say you want to create `my_test_project` and use `emager-py`.
 
 First, you'd create the project directory:
@@ -15,19 +21,27 @@ mkdir my_test_project
 cd my_test_project
 ```
 
-Then, install PDM, then run:
+Then, install PDM and run:
 
 ```bash
 pdm venv create
 pdm use .venv/bin/python
 eval $(pdm venv activate)
 pdm init # now answer the questions
+# Track GitHub repo
 pdm add -e "git+https://github.com/SBIOML/emager-py@main" --dev
+# OR track local repo
+pdm add -e file:///path/to/emager-py --dev
 ```
 
 To update the dependencies: `pdm sync`
 
-You can also clone `emager-py` somewhere on your computer and instead do: `pdm add -e file:///path/to/emager-py --dev`. This could be more convenient to, for example, locally develop `emager-py` instead of pulling from git.
+### Pip
+
+You can install `emager-py` with `pip`:`
+
+- From local: `python3 -m pip install -e file:///path/to/emager-py`
+- From remote: `python3 -m pip install -e "git+https://github.com/SBIOML/emager-py@main#egg=emager-py"`
 
 ## Repository structure
 
@@ -37,7 +51,8 @@ You can also clone `emager-py` somewhere on your computer and instead do: `pdm a
 - `transforms` are end-to-end data processing functions which take in raw EMaGer data and output ready-for-inference data. Usually, they take care of preprocessing and quantization if needed
 - `emager_data_generator` is used in online experiments to emulate a live sampling process. It pushes data into a Redis database
 - `emager_utils` is just general purpose constants and utilities
-- `finn/` contains FINN-specific routines, used in `emager-torch`
+- `visualize` some tools to visualize signals
+- `finn/` contains FINN-specific routines
 
 ## EMaGer Dataset
 

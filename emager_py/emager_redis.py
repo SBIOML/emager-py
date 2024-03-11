@@ -60,6 +60,12 @@ class EmagerRedis:
 
         return emg, labels
 
+    def get_int(self, key) -> int:
+        return int(self.r.get(key))
+
+    def get_str(self, key) -> str:
+        return self.get(key).decode("utf-8")
+
     def brpop_sample(self):
         _, dat_bytes = self.r.brpop(self.SAMPLES_FIFO_KEY)
         _, labels = self.r.brpop(self.LABELS_FIFO_KEY)

@@ -1,9 +1,8 @@
 import numpy as np
-import redis
 import serial
 import struct
 
-import emager_py.utils as eutils
+import emager_py.emager_redis as er
 
 
 class EmagerStreamerInterface:
@@ -17,17 +16,19 @@ class EmagerStreamerInterface:
 
         Returns a numpy array of shape (n_samples, n_ch). If no samples are available, return an empty array.
         """
-        pass
+        raise NotImplementedError(
+            "read() method must be implemented for the StreamerInterface."
+        )
 
 
 class RedisStreamer(EmagerStreamerInterface):
     def __init__(self, host):
-        self.r = redis.Redis(host)
+        self.r = er.EmagerRedis(host)
 
     def read(self):
         try:
             return np.frombuffer(
-                self.r.rpop(eutils.SAMPLES_FIFO_NAME), dtype=np.int16
+                self.r.r.rpop(self.r.SAMPLES_FIFO_KEY), dtype=np.int16
             ).reshape((-1, 64))
         except TypeError:
             return np.ndarray((0, 64))
