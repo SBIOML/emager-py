@@ -5,7 +5,7 @@ import logging as log
 import os
 from fabric import Connection
 
-from emager_py.finn import custom_make_zynq_proj
+from emager_py.finn import custom_make_zynq_proj, remote_operations as ro
 
 
 def step_custom_make_bd(model: ModelWrapper, cfg: build_cfg.DataflowBuildConfig):
@@ -48,7 +48,7 @@ def step_custom_make_bd(model: ModelWrapper, cfg: build_cfg.DataflowBuildConfig)
 
 
 def step_custom_deploy_to_pynq(model: ModelWrapper, cfg: build_cfg.DataflowBuildConfig):
-    pynq_emg_path = "/home/xilinx/workspace/pynq-emg/ondevice"
+    pynq_emg_path = "/home/xilinx/workspace/pynq-emg/"
     if "PYNQ_PROJ_ROOT" in os.environ.keys():
         pynq_emg_path = os.environ["PYNQ_PROJ_ROOT"]
 
@@ -56,16 +56,13 @@ def step_custom_deploy_to_pynq(model: ModelWrapper, cfg: build_cfg.DataflowBuild
         make_archive(cfg.output_dir + "/deploy", "zip", cfg.output_dir + "/deploy")
     )
 
-    with Connection(
-        "xilinx@pynq",
-        connect_kwargs={"password": "xilinx"},
-    ) as c:
-        result = c.put(
-            cfg.output_dir + "deploy.zip",
-            remote=pynq_emg_path,
-        )
-        log.info("Uploaded {0.local} to {0.remote}".format(result))
-        log.info(c.run(f"unzip -d {pynq_emg_path} -o {pynq_emg_path}/deploy.zip"))
-        log.info(c.run(f"rm {pynq_emg_path}/deploy.zip"))
-
+    conn = ro.connect_to_pynq()
+    result = conn.put(
+        cfg.output_dir + "deploy.zip",
+        remote=pynq_emg_path,
+    )
+    log.info("Uploaded {0.local} to {0.remote}".format(result))
+    log.info(conn.run(f"unzip -d {pynq_emg_path} -o {pynq_emg_path}/deploy.zip"))
+    log.info(conn.run(f"rm {pynq_emg_path}/deploy.zip"))
+    conn.close()
     return model
