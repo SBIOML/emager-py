@@ -41,7 +41,7 @@ To update the dependencies: `pdm sync`
 You can install `emager-py` with `pip`:`
 
 - From local: `python3 -m pip install -e file:///path/to/emager-py`
-- From remote: `python3 -m pip install -e "git+https://github.com/SBIOML/emager-py@main#egg=emager-py"`
+- From remote: `python3 -m pip install "git+https://github.com/SBIOML/emager-py@main#egg=emager-py"`
 
 ## Repository structure
 

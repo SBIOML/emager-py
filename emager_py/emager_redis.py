@@ -107,7 +107,7 @@ def get_docker_redis_ip() -> str:
     )
 
 
-def start_docker_redis() -> str | None:
+def start_docker_redis():
     try:
         sp.check_output(
             [
