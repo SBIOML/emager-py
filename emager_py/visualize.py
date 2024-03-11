@@ -129,9 +129,11 @@ if __name__ == "__main__":
     )
 
     r.clear_data()
-    r.set_sampling_params(1000, 10)
-    r.set_pynq_params(b"/home/xilinx/workspace/pynq-emg/bitfile/finn-accel.bit", "None")
-    r.set("rhd_enable_dsp", 0)
+    r.set_sampling_params(1000, 10, -1)
+    r.set_pynq_params("None")
+    r.set_rhd_sampler_params(
+        15, 350, 0, 0, ro.DEFAULT_EMAGER_PYNQ_PATH + "/bitfile/finn-accel.bit"
+    )
 
     if GENERATE:
         dg.update_params()

@@ -13,7 +13,8 @@ class EmagerRedis:
 
     BITSTREAM_KEY = "emager_bitstream"
     BATCH_KEY = "emager_samples_batch"
-    GENERATED_SAMPLES_KEY = "emager_samples_n"
+    SAMPLES_TO_GENERATE_KEY = "emager_samples_n"
+    GENERATED_SAMPLES_KEY = "emager_samples_gen"
     SAMPLES_FIFO_KEY = "emager_samples_fifo"
     LABELS_FIFO_KEY = "emager_labels_fifo"
     TRANSFORM_KEY = "emager_transform"
@@ -43,10 +44,11 @@ class EmagerRedis:
 
     def clear_data(self):
         """
-        Clear Redis Samples and Labels FIFOs.
+        Clear Redis Samples and Labels FIFOs and Generated Samples keys.
         """
         self.r.delete(self.SAMPLES_FIFO_KEY)
         self.r.delete(self.LABELS_FIFO_KEY)
+        self.r.delete(self.GENERATED_SAMPLES_KEY)
 
     def push_sample(self, samples: np.ndarray, labels: np.ndarray):
         self.r.lpush(self.SAMPLES_FIFO_KEY, samples.astype(np.int16).tobytes())
@@ -87,7 +89,7 @@ class EmagerRedis:
     def set_sampling_params(self, fs: int, batch: int, n_samples: int = 5000):
         self.set(self.FS_KEY, fs)
         self.set(self.BATCH_KEY, batch)
-        self.set(self.GENERATED_SAMPLES_KEY, n_samples)
+        self.set(self.SAMPLES_TO_GENERATE_KEY, n_samples)
 
     def set_rhd_sampler_params(
         self, low_bw: int, hi_bw: int, en_dsp: int, fp_dsp: int, bitstream: str
@@ -96,10 +98,10 @@ class EmagerRedis:
         self.set(self.AMPLIFIER_HI_BW_KEY, hi_bw)
         self.set(self.EN_DSP_KEY, en_dsp)
         self.set(self.FP_DSP_KEY, fp_dsp)
-        self.set(self.BITSTREAM_KEY, bitstream)
+        self.set(self.BITSTREAM_KEY, bitstream.encode())
 
     def set_pynq_params(self, transform: str):
-        self.set(self.TRANSFORM_KEY, transform)
+        self.set(self.TRANSFORM_KEY, transform.encode())
 
     def __del__(self):
         self.r.close()
