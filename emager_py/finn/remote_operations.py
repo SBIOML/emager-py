@@ -1,7 +1,8 @@
+import numpy as np
 import fabric
 from invoke import Responder
+
 import emager_py.emager_redis as er
-import numpy as np
 
 DEFAULT_EMAGER_PYNQ_PATH = "/home/xilinx/workspace/emager-pynq"
 
