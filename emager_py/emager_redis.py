@@ -6,12 +6,17 @@ import logging as log
 
 class EmagerRedis:
     FS_KEY = "rhd_sample_rate"
+    AMPLIFIER_LOW_BW_KEY = "rhd_amp_f_low"
+    AMPLIFIER_HI_BW_KEY = "rhd_amp_f_high"
+    EN_DSP_KEY = "rhd_enable_dsp"
+    FP_DSP_KEY = "rhd_amp_fp_dsp"
+
+    BITSTREAM_KEY = "emager_bitstream"
     BATCH_KEY = "emager_samples_batch"
-    TRANSFORM_KEY = "emager_transform"
+    GENERATED_SAMPLES_KEY = "emager_samples_n"
     SAMPLES_FIFO_KEY = "emager_samples_fifo"
     LABELS_FIFO_KEY = "emager_labels_fifo"
-    GENERATED_SAMPLES_KEY = "emager_samples_n"
-    BITSTREAM_KEY = "emager_bitstream"
+    TRANSFORM_KEY = "emager_transform"
 
     def __init__(self, hostname: str, port: int = 6379, **kwargs):
         try:
@@ -79,12 +84,21 @@ class EmagerRedis:
 
         return emg, labels
 
-    def set_sampling_params(self, fs: int, batch: int):
+    def set_sampling_params(self, fs: int, batch: int, n_samples: int = 5000):
         self.set(self.FS_KEY, fs)
         self.set(self.BATCH_KEY, batch)
+        self.set(self.GENERATED_SAMPLES_KEY, n_samples)
 
-    def set_pynq_params(self, bitstream: str, transform: str):
+    def set_rhd_sampler_params(
+        self, low_bw: int, hi_bw: int, en_dsp: int, fp_dsp: int, bitstream: str
+    ):
+        self.set(self.AMPLIFIER_LOW_BW_KEY, low_bw)
+        self.set(self.AMPLIFIER_HI_BW_KEY, hi_bw)
+        self.set(self.EN_DSP_KEY, en_dsp)
+        self.set(self.FP_DSP_KEY, fp_dsp)
         self.set(self.BITSTREAM_KEY, bitstream)
+
+    def set_pynq_params(self, transform: str):
         self.set(self.TRANSFORM_KEY, transform)
 
     def __del__(self):
@@ -128,4 +142,11 @@ def start_docker_redis() -> str | None:
 
 
 if __name__ == "__main__":
-    r = EmagerRedis(get_docker_redis_ip())
+    import emager_py.finn.remote_operations as ro
+
+    r = EmagerRedis("pynq")
+    r.clear_data()
+    r.set_sampling_params(100, 50, 500)
+    r.set_rhd_sampler_params(
+        20, 300, 0, 15, ro.DEFAULT_EMAGER_PYNQ_PATH + "/bitfile/finn-accel.bit"
+    )

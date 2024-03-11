@@ -123,9 +123,6 @@ class EmagerDataGenerator:
     def __len__(self):
         return len(self.labels)
 
-    def __del__(self):
-        self.__r.close()
-
 
 if __name__ == "__main__":
     utils.set_logging()
