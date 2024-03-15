@@ -119,7 +119,7 @@ if __name__ == "__main__":
 
     eutils.set_logging()
 
-    GENERATE = True
+    GENERATE = False
     HOST = er.get_docker_redis_ip() if GENERATE else "pynq"
     # HOST = "pynq"
 
@@ -129,7 +129,7 @@ if __name__ == "__main__":
     )
 
     r.clear_data()
-    r.set_sampling_params(1000, 10, -1)
+    r.set_sampling_params(1000, 10, 1000000)
     r.set_pynq_params("None")
     r.set_rhd_sampler_params(
         15, 350, 0, 0, ro.DEFAULT_EMAGER_PYNQ_PATH + "/bitfile/finn-accel.bit"
@@ -142,7 +142,8 @@ if __name__ == "__main__":
     else:
         c = ro.connect_to_pynq()
         t = threading.Thread(
-            target=ro.run_remote_finn, args=(c, "rhd-sampler/build/rhd_sampler")
+            target=ro.run_remote_finn,
+            args=(c, ro.DEFAULT_EMAGER_PYNQ_PATH, "rhd-sampler/build/rhd_sampler"),
         ).start()
 
     streamer = streamers.RedisStreamer(HOST)

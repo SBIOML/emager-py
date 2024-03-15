@@ -25,7 +25,7 @@ def root_processing(data: np.ndarray) -> np.ndarray:
     Apply default processing, followed by root-3 quantization
     """
     data = default_processing(data)
-    return dq.nroot_c(data, 3.0, np.max(data)).astype(np.uint8)
+    return dq.nroot_c(data, 3.0, 10000).astype(np.uint8)
 
 
 transforms_lut = {

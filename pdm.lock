@@ -5,7 +5,7 @@
 groups = ["default", "full"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:9ac98cc2e33a62bb64d820b4fcc31ba5851c7c60d66ac26d7d6a890e71d32460"
+content_hash = "sha256:9e4ac593f9c0c02f79e685214078de58a57b7e002ef6a17b8648126b7be2ad71"
 
 [[package]]
 name = "async-timeout"
@@ -625,6 +625,17 @@ marker = "platform_system == \"Linux\" and platform_machine == \"x86_64\""
 files = [
     {file = "nvidia_nvtx_cu12-12.1.105-py3-none-manylinux1_x86_64.whl", hash = "sha256:dc21cf308ca5691e7c04d962e213f8a4aa9bbfa23d95412f452254c2caeb09e5"},
     {file = "nvidia_nvtx_cu12-12.1.105-py3-none-win_amd64.whl", hash = "sha256:65f4d98982b31b60026e0e6de73fbdfc09d08a96f4656dd3665ca616a11e1e82"},
+]
+
+[[package]]
+name = "packaging"
+version = "24.0"
+requires_python = ">=3.7"
+summary = "Core utilities for Python packages"
+groups = ["default"]
+files = [
+    {file = "packaging-24.0-py3-none-any.whl", hash = "sha256:2ddfb553fdf02fb784c234c7ba6ccc288296ceabec964ad2eae3777778130bc5"},
+    {file = "packaging-24.0.tar.gz", hash = "sha256:eb82c5e3e56209074766e6885bb04b8c38a0c015d0a30036ebe7ece34c9989e9"},
 ]
 
 [[package]]

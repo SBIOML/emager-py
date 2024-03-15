@@ -54,7 +54,7 @@ class EmagerDataGenerator:
         emg, labels = dp.extract_labels(dat)
         if self.shuffle:
             emg, labels = dp.shuffle_dataset(
-                emg, labels, int(self.__r.get(self.__r.BATCH_KEY))
+                emg, labels, self.__r.get_int(self.__r.BATCH_KEY)
             )
 
         self.emg = emg.astype(np.int16)
@@ -126,25 +126,29 @@ class EmagerDataGenerator:
 
 if __name__ == "__main__":
     utils.set_logging()
-    host = er.get_docker_redis_ip()
-    batch = 75
+
+    # host = er.get_docker_redis_ip()
+    host = "pynq"
+
+    batch = 125
 
     r = er.EmagerRedis(host)
-    r.flushall()
-    r.set_sampling_params(1000, batch)
+    r.clear_data()
+    r.set_sampling_params(1000000, batch)
 
     dg = EmagerDataGenerator(host, utils.DATASETS_ROOT + "EMAGER/", True)
     emg, lab = dg.prepare_data("004", "001")
 
-    dg.get_serve_thread().start()
+    dg.serve_data()
     print("Len of generated data: ", r.get(r.GENERATED_SAMPLES_KEY))
 
     for i in range(len(lab)):
-        data, labels = r.brpop_sample()
+        # data, labels = r.brpop_sample()
+        data, labels = r.poppush_sample()
         batch = len(labels)
         print(f"Received shape {data.shape}")
         assert np.array_equal(data, emg[batch * i : batch * (i + 1)]), print(
-            data, emg[batch * i : batch * (i + 1)]
+            "Data does not match."
         )
         assert np.array_equal(labels, lab[batch * i : batch * (i + 1)]), print(
             labels, lab[batch * i : batch * (i + 1)]

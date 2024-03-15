@@ -2,6 +2,7 @@ import redis
 import subprocess as sp
 import numpy as np
 import logging as log
+from packaging import version
 
 
 class EmagerRedis:
@@ -30,6 +31,13 @@ class EmagerRedis:
                 )
             self.r = redis.Redis(host=hostname, port=port, **kwargs)
 
+        ver = self.r.info()["redis_version"]
+        log.info(f"Connected to Redis server {hostname} (v{ver})")
+
+        self.is_lmove = True
+        if version.parse(ver) < version.parse("6.2.0"):
+            self.is_lmove = False
+
     def set(self, key, value):
         self.r.set(key, value)
 
@@ -54,18 +62,17 @@ class EmagerRedis:
         self.r.lpush(self.SAMPLES_FIFO_KEY, samples.astype(np.int16).tobytes())
         self.r.lpush(self.LABELS_FIFO_KEY, labels.astype(np.uint8).tobytes())
 
-    def brpoplpush_sample(self):
-        dat_bytes = self.r.brpoplpush(self.SAMPLES_FIFO_KEY, self.SAMPLES_FIFO_KEY)
-        labels = self.r.brpoplpush(self.LABELS_FIFO_KEY, self.LABELS_FIFO_KEY)
+    def poppush_sample(self):
+        dat_bytes, labels = None, None
 
-        emg = np.frombuffer(dat_bytes, dtype=np.int16).reshape((-1, 64))
-        if len(labels) == 1:
-            label = np.frombuffer(labels, dtype=np.uint8)
-            labels = np.full(len(emg), label)
+        if self.is_lmove:
+            dat_bytes = self.r.blmove(self.SAMPLES_FIFO_KEY, self.SAMPLES_FIFO_KEY, 0)
+            labels = self.r.blmove(self.LABELS_FIFO_KEY, self.LABELS_FIFO_KEY, 0)
         else:
-            labels = np.frombuffer(labels, dtype=np.uint8)
+            dat_bytes = self.r.brpoplpush(self.SAMPLES_FIFO_KEY, self.SAMPLES_FIFO_KEY)
+            labels = self.r.brpoplpush(self.LABELS_FIFO_KEY, self.LABELS_FIFO_KEY)
 
-        return emg, labels
+        return self.decode_sample_bytes(dat_bytes, labels)
 
     def get_int(self, key) -> int:
         return int(self.r.get(key))
@@ -77,6 +84,9 @@ class EmagerRedis:
         _, dat_bytes = self.r.brpop(self.SAMPLES_FIFO_KEY)
         _, labels = self.r.brpop(self.LABELS_FIFO_KEY)
 
+        return self.decode_sample_bytes(dat_bytes, labels)
+
+    def decode_sample_bytes(self, dat_bytes: bytes, labels: bytes):
         emg = np.frombuffer(dat_bytes, dtype=np.int16).reshape((-1, 64))
         if len(labels) == 1:
             label = np.frombuffer(labels, dtype=np.uint8)
