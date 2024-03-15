@@ -1,5 +1,6 @@
 from qonnx.core.modelwrapper import ModelWrapper
 import finn.builder.build_dataflow_config as build_cfg
+import shutil
 from shutil import copytree, copy, make_archive
 import logging as log
 import os
@@ -51,7 +52,9 @@ def step_custom_deploy_to_pynq(model: ModelWrapper, cfg: build_cfg.DataflowBuild
     if "PYNQ_PROJ_ROOT" in os.environ.keys():
         pynq_emg_path = os.environ["PYNQ_PROJ_ROOT"]
 
-    os.rename(cfg.output_dir + "/deploy/driver", cfg.output_dir + "/deploy/finn_driver")
+    shutil.move(
+        cfg.output_dir + "/deploy/driver", cfg.output_dir + "/deploy/finn_driver"
+    )
 
     log.info(
         make_archive(cfg.output_dir + "/deploy", "zip", cfg.output_dir + "/deploy")
