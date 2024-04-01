@@ -16,9 +16,11 @@ class EmagerRedis:
     BATCH_KEY = "emager_samples_batch"
     SAMPLES_TO_GENERATE_KEY = "emager_samples_n"
     GENERATED_SAMPLES_KEY = "emager_samples_gen"
+    TRANSFORM_KEY = "emager_transform"
+
     SAMPLES_FIFO_KEY = "emager_samples_fifo"
     LABELS_FIFO_KEY = "emager_labels_fifo"
-    TRANSFORM_KEY = "emager_transform"
+    PREDICTIONS_FIFO_KEY = "emager_predictions_fifo"
 
     def __init__(self, hostname: str, port: int = 6379, **kwargs):
         try:
@@ -44,8 +46,14 @@ class EmagerRedis:
     def get(self, key):
         return self.r.get(key)
 
-    def lpush(self, key, value):
+    def push_fifo(self, key, value):
         self.r.lpush(key, value)
+
+    def pop_fifo(self, key, timeout: int = 0):
+        data_bytes = self.r.brpop(key)
+        if data_bytes is None:
+            return ()
+        return data_bytes[1]
 
     def flushall(self):
         self.r.flushall()
@@ -72,7 +80,7 @@ class EmagerRedis:
             dat_bytes = self.r.brpoplpush(self.SAMPLES_FIFO_KEY, self.SAMPLES_FIFO_KEY)
             labels = self.r.brpoplpush(self.LABELS_FIFO_KEY, self.LABELS_FIFO_KEY)
 
-        return self.decode_sample_bytes(dat_bytes, labels)
+        return self.decode_data_bytes(dat_bytes, labels)
 
     def get_int(self, key) -> int:
         return int(self.r.get(key))
@@ -80,30 +88,52 @@ class EmagerRedis:
     def get_str(self, key) -> str:
         return self.get(key).decode("utf-8")
 
-    def brpop_sample(self):
-        _, dat_bytes = self.r.brpop(self.SAMPLES_FIFO_KEY)
-        _, labels = self.r.brpop(self.LABELS_FIFO_KEY)
+    def pop_sample(self, is_labelled: bool = False, timeout: int = 0):
+        dat_bytes = self.r.brpop(self.SAMPLES_FIFO_KEY, timeout=timeout)
+        if dat_bytes is None:
+            return ()
+        if is_labelled:
+            labels = self.r.brpop(self.LABELS_FIFO_KEY, timeout=timeout)
+            if labels is not None:
+                return self.decode_labeled_data_bytes(dat_bytes[1], labels[1])
 
-        return self.decode_sample_bytes(dat_bytes, labels)
+        return (self.decode_data_bytes(dat_bytes[1]),)
 
-    def decode_sample_bytes(self, dat_bytes: bytes, labels: bytes):
-        emg = np.frombuffer(dat_bytes, dtype=np.int16).reshape((-1, 64))
+    def decode_labeled_data_bytes(self, data_bytes: bytes, label_bytes: bytes):
+        data = self.decode_data_bytes(data_bytes)
+        labels = self.decode_label_bytes(label_bytes)
+
         if len(labels) == 1:
-            label = np.frombuffer(labels, dtype=np.uint8)
-            labels = np.full(len(emg), label)
-        else:
-            labels = np.frombuffer(labels, dtype=np.uint8)
+            labels = np.full(len(labels), labels[0])
 
-        return emg, labels
+        return data, labels
 
-    def set_sampling_params(self, fs: int, batch: int, n_samples: int = 5000):
+    def decode_data_bytes(self, sample_bytes: bytes):
+        return np.frombuffer(sample_bytes, dtype=np.int16).reshape((-1, 64))
+
+    def decode_label_bytes(self, label_bytes: bytes) -> np.ndarray:
+        return np.frombuffer(label_bytes, dtype=np.uint8)
+
+    def set_sampling_params(
+        self, fs: int = 1000, batch: int = 25, n_samples: int = 5000
+    ):
         self.set(self.FS_KEY, fs)
         self.set(self.BATCH_KEY, batch)
         self.set(self.SAMPLES_TO_GENERATE_KEY, n_samples)
 
     def set_rhd_sampler_params(
-        self, low_bw: int, hi_bw: int, en_dsp: int, fp_dsp: int, bitstream: str
+        self,
+        low_bw: int = 15,
+        hi_bw: int = 350,
+        en_dsp: int = 0,
+        fp_dsp: int = 20,
+        bitstream: str = "",
     ):
+        """
+        Set RHD sampler parameters.
+
+        Note from RHD2000 datasheet: it is good practice to set the DSP cutoff frequency fc higher than the analog amplifier lower cutoff frequency fL
+        """
         self.set(self.AMPLIFIER_LOW_BW_KEY, low_bw)
         self.set(self.AMPLIFIER_HI_BW_KEY, hi_bw)
         self.set(self.EN_DSP_KEY, en_dsp)
@@ -162,3 +192,6 @@ if __name__ == "__main__":
     r.set_rhd_sampler_params(
         20, 300, 0, 15, ro.DEFAULT_EMAGER_PYNQ_PATH + "/bitfile/finn-accel.bit"
     )
+    r.push_sample(np.random.randint(0, 100, (64, 64)), np.random.randint(0, 6, 64))
+    print(len(r.pop_sample(False, 1)))
+    print(len(r.pop_sample(True, 1)))

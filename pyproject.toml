@@ -9,6 +9,9 @@ dependencies = [
     "redis[hiredis]",
     "pyserial",
     "packaging>=24.0",
+    "libemg>=0.0.3",
+    "pillow>=10.3.0",
+    "sv-ttk>=2.6.0",
 ]
 requires-python = ">=3.8"
 readme = "README.md"
