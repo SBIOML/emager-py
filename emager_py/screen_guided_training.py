@@ -49,14 +49,16 @@ class EmagerGuidedTraining:
         self.resume_training_callback = resume_training_callback
         self.callback_arg = callback_arg
         self.callback_arg_lut = {
-            "none": None,
             "gesture": self.get_gesture,
         }
+        self.thread = threading.Thread()
 
         self.create_widgets()
 
         self.root.bind("<Escape>", lambda e: self.cancel_training())
-        self.root.bind("<Return>", lambda e: self.continue_training())
+        self.root.bind(
+            "<Return>", lambda e: self.continue_training() if self.state == 0 else None
+        )
 
     def get_callback_lut(self):
         return self.callback_arg_lut
@@ -66,8 +68,8 @@ class EmagerGuidedTraining:
 
     def countdown(self, remaining, callback=None):
         # change text in label
-        self.timer["text"] = f"{remaining:.1f} seconds remaining"
         if remaining > 0:
+            self.timer["text"] = f"{remaining:.1f} seconds remaining"
             self.root.after(100, self.countdown, remaining - 0.1, callback)
         elif callback is not None:
             callback()
@@ -97,34 +99,44 @@ class EmagerGuidedTraining:
         if self.current_rep >= self.total_reps:
             self.info_lbl["text"] = "Training completed, exiting soon..."
             self.continue_btn["state"] = tk.DISABLED
-            self.countdown(5, self.cancel_training)
+            self.countdown(3, self.cancel_training)
             return
 
         if self.state == 0:
-            self.state = 1
+            # Update gesture info and start preparation countdown
             self.continue_btn["state"] = tk.DISABLED
             self.info_lbl["text"] = (
                 f"Rep {self.current_rep+1}/{self.total_reps} Gesture {self.gesture_index+1}/{len(self.gestures)}"
             )
             self.set_picture(True)
-            self.countdown(2, self.continue_training)
+            self.countdown(1, self.continue_training)
+            self.state = 1
         elif self.state == 1:
-            self.state = 2
+            # Start sampling callback
             self.set_picture(False)
             if self.resume_training_callback is not None:
-                t = None
                 if self.callback_arg is not None:
-                    t = threading.Thread(
+                    self.thread = threading.Thread(
                         target=self.resume_training_callback,
                         args=(self.callback_arg_lut[self.callback_arg](),),
+                        daemon=True,
                     )
                 else:
-                    t = threading.Thread(target=self.resume_training_callback)
-                t.daemon = True
-                t.start()
+                    self.thread = threading.Thread(
+                        target=self.resume_training_callback, daemon=True
+                    )
+                self.thread.start()
             self.countdown(self.training_time, self.continue_training)
+            self.state = 2
         elif self.state == 2:
-            self.state = 0
+            # Waiting for thread to finish and wait for continue
+            if self.resume_training_callback is not None:
+                if self.thread.is_alive():
+                    self.timer["text"] = (
+                        f"Waiting for {self.resume_training_callback.__name__} to finish..."
+                    )
+                    self.root.after(150, self.continue_training)
+                    return
             self.gesture_index += 1
             if self.gesture_index >= len(self.gestures):
                 # Done with this rep
@@ -132,6 +144,7 @@ class EmagerGuidedTraining:
                 self.gesture_index = 0
             self.continue_btn["state"] = tk.ACTIVE
             self.timer["text"] = "Press Continue"
+            self.state = 0
 
     def cancel_training(self):
         self.root.quit()
@@ -156,10 +169,13 @@ class EmagerGuidedTraining:
 
 
 if __name__ == "__main__":
+    import time
 
     def my_cb(gesture):
-        print(f"Gesture {gesture} done!")
+        print("Simulating long running process...")
+        time.sleep(5)
+        print(f"Gesture {gesture+1} done!")
 
     EmagerGuidedTraining(
-        resume_training_callback=my_cb, training_time=3, callback_arg="gesture"
+        resume_training_callback=my_cb, reps=1, training_time=1, callback_arg="gesture"
     ).start()

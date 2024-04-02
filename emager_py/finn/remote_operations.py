@@ -93,5 +93,6 @@ if __name__ == "__main__":
         15, 300, 0, 1, DEFAULT_EMAGER_PYNQ_PATH + "/bitfile/finn-accel.bit"
     )
     r.set_sampling_params(1000, 50, 5000)
-    sample_live_data(conn, 5000, 2, 1, DEFAULT_EMAGER_PYNQ_PATH, "pynq")
+    # sample_live_data(conn, 5000, 2, 1, DEFAULT_EMAGER_PYNQ_PATH, "pynq")
+    sample_training_data(conn, "pynq", 5000, DEFAULT_EMAGER_PYNQ_PATH, 1)
     conn.close()
