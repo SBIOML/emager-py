@@ -62,12 +62,27 @@ def sample_live_data(
     n_batches_per_it = n_samples // r.get_int(r.BATCH_KEY)
     for e in range(n_repeats):
         for g in range(n_gestures):
-            input(f"({e+1}/{n_repeats}) Do gesture #{g}")
-            run_remote_finn(conn, path, f"rhd-sampler/build/rhd_sampler {redis_host}")
+            input(f"({e+1}/{n_repeats}) Do gesture #{g}... Press Enter to start.")
+            run_remote_finn(conn, path, f"rhd_sampler {redis_host}")
             for _ in range(n_batches_per_it):
-                r.lpush(r.LABELS_FIFO_KEY, np.array(g, dtype=np.uint8).tobytes())
+                r.push_fifo(r.LABELS_FIFO_KEY, np.array(g, dtype=np.uint8).tobytes())
     n_batches_tot = r.r.llen(er.EmagerRedis.SAMPLES_FIFO_KEY)
     r.set(r.GENERATED_SAMPLES_KEY, int(n_batches_tot * n_repeats * n_gestures))
+
+
+def sample_training_data(
+    conn: fabric.Connection,
+    redis_host: str,
+    n_samples: int,
+    path: str,
+    gesture_id: int,
+):
+    r = er.EmagerRedis(redis_host)
+    n_batches_per_it = n_samples // r.get_int(r.BATCH_KEY)
+    run_remote_finn(conn, path, f"rhd_sampler {redis_host}")
+    for _ in range(n_batches_per_it):
+        r.push_fifo(r.LABELS_FIFO_KEY, np.array(gesture_id, dtype=np.uint8).tobytes())
+    return n_batches_per_it
 
 
 if __name__ == "__main__":

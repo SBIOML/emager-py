@@ -4,6 +4,7 @@ import sv_ttk
 from PIL import ImageTk, Image
 import os
 import json
+import threading
 from libemg.screen_guided_training import ScreenGuidedTraining
 
 
@@ -27,7 +28,9 @@ class EmagerGuidedTraining:
         reps: int = 5,
         gestures: list[int] = [2, 14, 26, 1, 14, 30],
         gestures_path: str = "gestures",
+        training_time: float = 5,
         resume_training_callback: callable = None,
+        callback_arg: None | str = None,
     ):
         self.root = tk.Tk()
         self.root.title("EMaGer Guided Training")
@@ -42,21 +45,31 @@ class EmagerGuidedTraining:
         self.image = None
         self.gestures = get_gestures_from_libemg(gestures, gestures_path)
         self.gesture_index = 0
+        self.training_time = training_time
         self.resume_training_callback = resume_training_callback
+        self.callback_arg = callback_arg
+        self.callback_arg_lut = {
+            "none": None,
+            "gesture": self.get_gesture,
+        }
 
         self.create_widgets()
 
         self.root.bind("<Escape>", lambda e: self.cancel_training())
         self.root.bind("<Return>", lambda e: self.continue_training())
 
+    def get_callback_lut(self):
+        return self.callback_arg_lut
+
+    def get_gesture(self):
+        return self.gesture_index
+
     def countdown(self, remaining, callback=None):
         # change text in label
+        self.timer["text"] = f"{remaining:.1f} seconds remaining"
         if remaining > 0:
-            self.timer["text"] = f"{remaining:.1f} seconds remaining"
             self.root.after(100, self.countdown, remaining - 0.1, callback)
         elif callback is not None:
-            self.timer["text"] = ""
-
             callback()
 
     def create_widgets(self):
@@ -99,8 +112,17 @@ class EmagerGuidedTraining:
             self.state = 2
             self.set_picture(False)
             if self.resume_training_callback is not None:
-                self.resume_training_callback()
-            self.countdown(5, self.continue_training)
+                t = None
+                if self.callback_arg is not None:
+                    t = threading.Thread(
+                        target=self.resume_training_callback,
+                        args=(self.callback_arg_lut[self.callback_arg](),),
+                    )
+                else:
+                    t = threading.Thread(target=self.resume_training_callback)
+                t.daemon = True
+                t.start()
+            self.countdown(self.training_time, self.continue_training)
         elif self.state == 2:
             self.state = 0
             self.gesture_index += 1
@@ -134,5 +156,10 @@ class EmagerGuidedTraining:
 
 
 if __name__ == "__main__":
-    app = EmagerGuidedTraining()
-    app.start()
+
+    def my_cb(gesture):
+        print(f"Gesture {gesture} done!")
+
+    EmagerGuidedTraining(
+        resume_training_callback=my_cb, training_time=3, callback_arg="gesture"
+    ).start()
