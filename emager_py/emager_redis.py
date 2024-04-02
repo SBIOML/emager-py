@@ -80,7 +80,7 @@ class EmagerRedis:
             dat_bytes = self.r.brpoplpush(self.SAMPLES_FIFO_KEY, self.SAMPLES_FIFO_KEY)
             labels = self.r.brpoplpush(self.LABELS_FIFO_KEY, self.LABELS_FIFO_KEY)
 
-        return self.decode_data_bytes(dat_bytes, labels)
+        return self.decode_labeled_data_bytes(dat_bytes, labels)
 
     def get_int(self, key) -> int:
         return int(self.r.get(key))
@@ -108,7 +108,7 @@ class EmagerRedis:
 
         return data, labels
 
-    def decode_data_bytes(self, sample_bytes: bytes):
+    def decode_data_bytes(self, sample_bytes: bytes) -> np.ndarray:
         return np.frombuffer(sample_bytes, dtype=np.int16).reshape((-1, 64))
 
     def decode_label_bytes(self, label_bytes: bytes) -> np.ndarray:
