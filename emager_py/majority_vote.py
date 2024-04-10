@@ -16,7 +16,7 @@ class MajorityVote(deque):
         for _ in range(100):
             r = rd.randint(0, 6)
             q.append(r)
-            vote = q.vote()
+            vote = q.vote() # Get the majority vote
         ```
         """
         super().__init__(maxlen=max_len)
