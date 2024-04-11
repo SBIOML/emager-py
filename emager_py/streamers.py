@@ -118,13 +118,6 @@ class SerialStreamer(EmagerStreamerInterface):
         )
         self.fmt = ">64h"
 
-    def clear_buffer(self):
-        """
-        Clear the serial port input buffer.
-        :return: None
-        """
-        self.ser.reset_input_buffer()
-
     def close(self):
         """
         Close serial port.
@@ -180,11 +173,12 @@ class SerialStreamer(EmagerStreamerInterface):
         if labels is not None:
             self.ser.write(labels.astype(np.uint8).tobytes())
 
-    def configure(self, **kwargs):
-        pass
-
-    def __len__(self):
-        pass
+    def clear(self):
+        """
+        Clear the serial port input buffer.
+        :return: None
+        """
+        self.ser.reset_input_buffer()
 
     def __del__(self):
         self.close()
@@ -262,12 +256,6 @@ class TcpStreamer(EmagerStreamerInterface):
 
     def write(self, data: np.ndarray, labels: np.ndarray | None = None):
         self.conn.sendall(data.astype(np.int16).tobytes())
-
-    def configure(self, **kwargs):
-        pass
-
-    def __len__(self):
-        pass
 
     def __del__(self):
         self.close()
