@@ -283,18 +283,59 @@ def socat_tcp_serial(tcp_port: int, serial_port: str) -> sp.Popen:
     return proc
 
 
-if __name__ == "__main__":
+def socat_serial_serial(serial_port_1: str, serial_port_2: str) -> sp.Popen:
+    """
+    Use `socat` in a subprocess, creating two virtual serial ports.
 
-    PORT = 2344
-    VSERIAL = "/tmp/ttyEmager"
+    Returns the process.
 
-    proc = socat_tcp_serial(PORT, VSERIAL)
-    server_streamer = TcpStreamer(PORT, "localhost", False)
-    client_streamer = SerialStreamer(VSERIAL, 115200, True)
+    Example:
 
+    ```python
+    proc = socat_serial_serial("/tmp/tty0", "/tmp/tty1")
+    client_streamer = SerialStreamer("/tmp/tty0", 115200, True)
+    server_streamer = SerialStreamer("/tmp/tty1", 115200, True)
     for i in range(10):
         server_streamer.write(np.random.randint(0, 1024, (10, 64)))
         print(client_streamer.read().shape)
         time.sleep(1)
+    ```
+    """
+    proc = sp.Popen(
+        [
+            "socat",
+            f"pty,rawer,link={serial_port_1}",
+            f"pty,rawer,link={serial_port_2}",
+        ]
+    )
+    time.sleep(3)
+    return proc
+
+
+if __name__ == "__main__":
+
+    PORT = 2341
+    VSERIAL = "/tmp/tty0"
+    VSERIAL2 = "/tmp/tty1"
+    BAUD = 230400
+
+    proc = socat_tcp_serial(PORT, VSERIAL)
+    # proc = socat_serial_serial(VSERIAL, VSERIAL2)
+
+    server_streamer = TcpStreamer(PORT, "localhost", False)
+    # server_streamer = SerialStreamer(VSERIAL2, BAUD, True)
+
+    client_streamer = SerialStreamer(VSERIAL, BAUD, True)
+
+    for i in range(10):
+        print("-" * 20)
+        data = np.random.randint(0, 1024, (10, 64))
+        print("Sending data of size:", data.size)
+        server_streamer.write(data)
+        print("Data sent.")
+        ret = client_streamer.read()
+        print("Received data of size:", ret.size)
+
+        time.sleep(0.5)
 
     proc.kill()
