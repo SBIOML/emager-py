@@ -89,6 +89,9 @@ class EmagerRedis:
         return self.get(key).decode("utf-8")
 
     def pop_sample(self, is_labelled: bool = False, timeout: int = 0):
+        """
+        Pop a sample from Redis FIFOs.
+        """
         dat_bytes = self.r.brpop(self.SAMPLES_FIFO_KEY, timeout=timeout)
         if dat_bytes is None:
             return ()

@@ -3,6 +3,7 @@ import time
 import threading
 import logging as log
 
+from emager_py import streamers
 import emager_py.utils as utils
 import emager_py.dataset as ed
 import emager_py.data_processing as dp
@@ -10,7 +11,14 @@ import emager_py.emager_redis as er
 
 
 class EmagerDataGenerator:
-    def __init__(self, host: str, dataset_root: str, shuffle: bool = True):
+    def __init__(
+        self,
+        streamer: streamers.EmagerStreamerInterface,
+        dataset_root: str,
+        sampling_rate: int = 1000,
+        batch_size: int = 1,
+        shuffle: bool = True,
+    ):
         """
         This class allows you to simulate a live sampling process. It does not apply any SigProc.
         It is meant to run on a host PC, not on an embedded device.
@@ -23,20 +31,21 @@ class EmagerDataGenerator:
         or `get_serve_thread(...)` to get a server thread which can then be `start()`ed.
 
         Parameters:
-            - host: Redis hostname to connect to
+            - streamer: a subclass of EmagerStreamerInterface. It should implement a `write()` method.
             - dataset_root: EMaGer dataset root
             - shuffle: shuffle the data before serving
         """
         self.__dataset_root = dataset_root
-        self.__r = er.EmagerRedis(host)
 
-        self.batch = 1
-        self.sampling_rate = 1000
+        self.streamer = streamer
+        self.batch = batch_size
+        self.sampling_rate = sampling_rate
+        self.shuffle = shuffle
+
+        streamer.clear()
 
         self.emg = np.ndarray((0, 64))
         self.labels = np.ndarray((1))
-
-        self.shuffle = shuffle
 
     def prepare_data(self, subject: str, session: str) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -53,14 +62,12 @@ class EmagerDataGenerator:
         )
         emg, labels = dp.extract_labels(dat)
         if self.shuffle:
-            emg, labels = dp.shuffle_dataset(
-                emg, labels, self.__r.get_int(self.__r.BATCH_KEY)
-            )
+            emg, labels = dp.shuffle_dataset(emg, labels, self.batch)
 
         self.emg = emg.astype(np.int16)
         self.labels = labels.astype(np.uint8)
 
-        self.__r.set(self.__r.GENERATED_SAMPLES_KEY, len(self))
+        self.streamer.set_len(len(self.labels))
 
         log.info(
             f"Prepared data of shape {self.emg.shape}, labels {self.labels.shape}."
@@ -83,23 +90,16 @@ class EmagerDataGenerator:
         For loop over `self.generate_data` which pushes 1 data batch to `self.__redis` in a timely manner.
         For a threaded usage, prefer `self.get_serve_thread` instead.
         """
-        self.update_params()
         lpush_time = self.batch / self.sampling_rate
         log.info(f"Serving data every {lpush_time:.4f} s")
         # rep_start_time = time.perf_counter()
         for emg, label in self.generate_data():
             t0 = time.perf_counter()
-            p = self.__r.r.pipeline()
-            p.lpush(self.__r.SAMPLES_FIFO_KEY, emg.tobytes())
-            p.lpush(self.__r.LABELS_FIFO_KEY, label.tobytes())
-            p.execute()
+            self.streamer.write(emg, label)
             dt = time.perf_counter() - t0
             if dt < lpush_time:
                 time.sleep(lpush_time - dt)
             # print(time.perf_counter() - t0)
-
-    def clear_data(self):
-        self.__r.clear_data()
 
     def get_serve_thread(self):
         """
@@ -109,17 +109,6 @@ class EmagerDataGenerator:
         """
         return threading.Thread(target=self.serve_data)
 
-    def update_params(self):
-        """
-        Update data generation parameters from Redis.
-        """
-        self.batch = int(self.__r.get(self.__r.BATCH_KEY))
-        self.sampling_rate = int(self.__r.get(self.__r.FS_KEY))
-
-        log.info(
-            f"Parameters updated from Redis: batch size {self.batch}, fs {self.sampling_rate}"
-        )
-
     def __len__(self):
         return len(self.labels)
 
@@ -127,24 +116,20 @@ class EmagerDataGenerator:
 if __name__ == "__main__":
     utils.set_logging()
 
-    # host = er.get_docker_redis_ip()
-    host = "pynq"
+    batch = 25
+    host = er.get_docker_redis_ip()
+    # host = "pynq"
 
-    batch = 125
-
-    r = er.EmagerRedis(host)
-    r.clear_data()
-    r.set_sampling_params(1000000, batch)
-
-    dg = EmagerDataGenerator(host, utils.DATASETS_ROOT + "EMAGER/", True)
+    server_stream = streamers.RedisStreamer(host, True)
+    dg = EmagerDataGenerator(
+        server_stream, utils.DATASETS_ROOT + "EMAGER/", 100000000, batch, True
+    )
     emg, lab = dg.prepare_data("004", "001")
-
     dg.serve_data()
-    print("Len of generated data: ", r.get(r.GENERATED_SAMPLES_KEY))
-
+    print("Len of generated data: ", len(dg))
     for i in range(len(lab)):
         # data, labels = r.brpop_sample()
-        data, labels = r.poppush_sample()
+        data, labels = server_stream.read()
         batch = len(labels)
         print(f"Received shape {data.shape}")
         assert np.array_equal(data, emg[batch * i : batch * (i + 1)]), print(

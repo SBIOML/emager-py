@@ -33,6 +33,7 @@ class RealTimeOscilloscope:
         self.data_points = int(accumulate_t * signal_fs)
         self.refresh_rate = refresh_rate
         self.server = data_server
+        self.samples_per_refresh = signal_fs // refresh_rate
 
         # Create a time axis
         self.t = np.linspace(0, accumulate_t, self.data_points)
@@ -79,8 +80,8 @@ class RealTimeOscilloscope:
 
     def update(self):
         new_data = np.zeros((0, self.n_ch))
-        while True:
-            # Fetch all available data
+        # Fetch all available data
+        while len(new_data) < self.samples_per_refresh:
             tmp_data = self.server.read()
             if tmp_data.shape[0] == 0:
                 break
@@ -119,26 +120,29 @@ if __name__ == "__main__":
 
     eutils.set_logging()
 
-    GENERATE = False
+    FS = 1000
+    BATCH = 1
+    GENERATE = True
+    PORT = 12347
     HOST = er.get_docker_redis_ip() if GENERATE else "pynq"
     # HOST = "pynq"
 
-    r = er.EmagerRedis(HOST)
-    dg = edg.EmagerDataGenerator(
-        HOST, "/home/gabrielgagne/Documents/git/emager-pytorch/data/EMAGER/", False
-    )
-
-    r.clear_data()
-    r.set_sampling_params(1000, 10, 1000000)
-    r.set_pynq_params("None")
-    r.set_rhd_sampler_params(
-        15, 350, 0, 0, ro.DEFAULT_EMAGER_PYNQ_PATH + "/bitfile/finn-accel.bit"
-    )
+    def generate_data():
+        # rs = streamers.RedisStreamer(HOST, False)
+        stream_server = streamers.TcpStreamer(PORT, "localhost", True)
+        dg = edg.EmagerDataGenerator(
+            stream_server,
+            "/home/gabrielgagne/Documents/git/emager-pytorch/data/EMAGER/",
+            sampling_rate=FS,
+            batch_size=BATCH,
+            shuffle=False,
+        )
+        dg.prepare_data("004", "001")
+        dg.serve_data()
+        print("Started serving data...")
 
     if GENERATE:
-        dg.update_params()
-        dg.prepare_data("004", "001")
-        dg.get_serve_thread().start()
+        threading.Thread(target=generate_data).start()
     else:
         c = ro.connect_to_pynq()
         t = threading.Thread(
@@ -146,6 +150,9 @@ if __name__ == "__main__":
             args=(c, ro.DEFAULT_EMAGER_PYNQ_PATH, "rhd-sampler/build/rhd_sampler"),
         ).start()
 
-    streamer = streamers.RedisStreamer(HOST)
-    oscilloscope = RealTimeOscilloscope(streamer, 64, r.get_int(r.FS_KEY), 3, 30)
+    time.sleep(1)
+
+    print("Starting client and oscilloscope...")
+    stream_client = streamers.TcpStreamer(PORT, "localhost", False)
+    oscilloscope = RealTimeOscilloscope(stream_client, 64, FS, 3, 30)
     oscilloscope.run()
