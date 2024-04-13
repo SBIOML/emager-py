@@ -4,7 +4,9 @@ import struct
 import socket
 import subprocess as sp
 import time
+import sys
 import logging as log
+from typing import Union
 
 import emager_py.emager_redis as er
 
@@ -24,7 +26,7 @@ class EmagerStreamerInterface:
             "read() method must be implemented for the StreamerInterface."
         )
 
-    def write(self, data: np.ndarray, labels: np.ndarray | None = None):
+    def write(self, data: np.ndarray, labels: Union[np.ndarray, None] = None):
         """
         Write data to the Stream.
         """
@@ -67,7 +69,7 @@ class RedisStreamer(EmagerStreamerInterface):
         else:
             return data[0]
 
-    def write(self, data: np.ndarray, labels: np.ndarray | None = None):
+    def write(self, data: np.ndarray, labels: Union[np.ndarray, None] = None):
         if self.labelling:
             self.r.push_sample(data, labels)
         else:
@@ -168,7 +170,7 @@ class SerialStreamer(EmagerStreamerInterface):
                 samples_list.append(samples)
         return np.array(samples_list)
 
-    def write(self, data: np.ndarray, labels: np.ndarray | None = None):
+    def write(self, data: np.ndarray, labels: Union[np.ndarray, None] = None):
         self.ser.write(data.astype(np.int16).tobytes())
         if labels is not None:
             self.ser.write(labels.astype(np.uint8).tobytes())
@@ -254,7 +256,7 @@ class TcpStreamer(EmagerStreamerInterface):
             return np.ndarray((0, 64))
         return np.frombuffer(data, dtype=np.int16).reshape((-1, 64))
 
-    def write(self, data: np.ndarray, labels: np.ndarray | None = None):
+    def write(self, data: np.ndarray, labels: Union[np.ndarray, None] = None):
         self.conn.sendall(data.astype(np.int16).tobytes())
 
     def __del__(self):
