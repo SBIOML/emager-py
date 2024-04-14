@@ -65,7 +65,7 @@ class EmagerDataGenerator:
         if self.shuffle:
             emg, labels = dp.shuffle_dataset(emg, labels, self.batch)
 
-        self.streamer.set_len(len(self.labels))
+        self.streamer.set_len(len(labels))
         self.__idx = 0
 
         self.emg = emg.reshape((len(emg) // self.batch, self.batch, 64)).astype(
@@ -106,7 +106,8 @@ class EmagerDataGenerator:
                     sleep_time += err_ts
                     # log.info(f"true avg fs: {1/true_ts:.4f} Hz, {err_ts:.6f} s error")
 
-                time.sleep(max(0, sleep_time))
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
 
     def push_sample(self):
         if self.__idx >= len(self.labels):
