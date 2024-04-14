@@ -18,6 +18,7 @@ class EmagerDataGenerator:
         sampling_rate: int = 1000,
         batch_size: int = 1,
         shuffle: bool = True,
+        threaded: bool = False,
     ):
         """
         This class allows you to simulate a live sampling process. It does not apply any SigProc.
@@ -41,6 +42,8 @@ class EmagerDataGenerator:
         self.batch = batch_size
         self.sampling_rate = sampling_rate
         self.shuffle = shuffle
+        self.__threaded = threaded
+        self.__idx = 0
 
         streamer.clear()
 
@@ -50,8 +53,6 @@ class EmagerDataGenerator:
     def prepare_data(self, subject: str, session: str) -> tuple[np.ndarray, np.ndarray]:
         """
         Load data from disk and prepare it for serving, including shuffling if `self.shuffle` is True.
-
-        Sets Redis `emager_utils.GENERATED_SAMPLES_KEY` key.
         """
         assert (
             session in ed.get_sessions()
@@ -64,50 +65,56 @@ class EmagerDataGenerator:
         if self.shuffle:
             emg, labels = dp.shuffle_dataset(emg, labels, self.batch)
 
-        self.emg = emg.astype(np.int16)
-        self.labels = labels.astype(np.uint8)
-
         self.streamer.set_len(len(self.labels))
+        self.__idx = 0
+
+        self.emg = emg.reshape((len(emg) // self.batch, self.batch, 64)).astype(
+            np.int16
+        )
+        self.labels = labels.reshape((len(labels) // self.batch, self.batch, 1)).astype(
+            np.uint8
+        )
 
         log.info(
             f"Prepared data of shape {self.emg.shape}, labels {self.labels.shape}."
         )
         return self.emg, self.labels
 
-    def generate_data(
-        self,
-    ):
-        """
-        Create a data generator.
-        """
-        for i in range(len(self) // self.batch):
-            emg = self.emg[self.batch * i : self.batch * (i + 1), :]
-            labels = self.labels[self.batch * i : self.batch * (i + 1)]
-            yield emg, labels
-
-    def serve_data(self):
+    def serve_data(self, threaded: bool = False):
         """
         For loop over `self.generate_data` which pushes 1 data batch to `self.__redis` in a timely manner.
         For a threaded usage, prefer `self.get_serve_thread` instead.
         """
-        lpush_time = self.batch / self.sampling_rate
-        log.info(f"Serving data every {lpush_time:.4f} s")
-        # rep_start_time = time.perf_counter()
-        for emg, label in self.generate_data():
-            t0 = time.perf_counter()
-            self.streamer.write(emg, label)
-            dt = time.perf_counter() - t0
-            if dt < lpush_time:
-                time.sleep(lpush_time - dt)
-            # print(time.perf_counter() - t0)
+        push_ts = self.batch / self.sampling_rate
+        log.info(
+            f"Serving {len(self)} batches of {self.batch} elements every {push_ts:.4f} s"
+        )
 
-    def get_serve_thread(self):
-        """
-        Return a Thread which is ready to start serving data.
+        self.__idx = 0
+        if self.__threaded and threaded:
+            t = threading.Thread(target=self.serve_data, args=(False,))
+            t.start()
+            return t
+        else:
+            since = time.perf_counter()
+            sleep_time = push_ts
+            true_ts = push_ts
+            while self.push_sample():
+                if self.__idx % 100 == 0:
+                    true_ts = (time.perf_counter() - since) / (self.__idx + 1)
+                    err_ts = push_ts - true_ts
+                    sleep_time += err_ts
+                    # log.info(f"true avg fs: {1/true_ts:.4f} Hz, {err_ts:.6f} s error")
 
-        Call `t.start()` on this function's return value to start serving.
-        """
-        return threading.Thread(target=self.serve_data)
+                time.sleep(max(0, sleep_time))
+
+    def push_sample(self):
+        if self.__idx >= len(self.labels):
+            return False
+
+        self.streamer.write(self.emg[self.__idx], self.labels[self.__idx])
+        self.__idx += 1
+        return True
 
     def __len__(self):
         return len(self.labels)
@@ -116,16 +123,18 @@ class EmagerDataGenerator:
 if __name__ == "__main__":
     utils.set_logging()
 
-    batch = 25
+    batch = 10
     host = er.get_docker_redis_ip()
     # host = "pynq"
 
-    server_stream = streamers.RedisStreamer(host, True)
+    # server_stream = streamers.RedisStreamer(host, True)
+    server_stream = streamers.TcpStreamer(4444, listen=False)
     dg = EmagerDataGenerator(
-        server_stream, utils.DATASETS_ROOT + "EMAGER/", 100000000, batch, True
+        server_stream, utils.DATASETS_ROOT + "EMAGER/", 1000, batch, True
     )
     emg, lab = dg.prepare_data("004", "001")
-    dg.serve_data()
+    dg.serve_data(True)
+
     print("Len of generated data: ", len(dg))
     for i in range(len(lab)):
         # data, labels = r.brpop_sample()

@@ -251,7 +251,7 @@ class TcpStreamer(EmagerStreamerInterface):
 
         Returns a (n_samples, n_ch) array
         """
-        data = self.conn.recv(4096)
+        data = self.conn.recv(16384)
         if not data:
             return np.ndarray((0, 64))
         return np.frombuffer(data, dtype=np.int16).reshape((-1, 64))

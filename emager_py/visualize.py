@@ -14,7 +14,7 @@ import emager_py.streamers as streamers
 class RealTimeOscilloscope:
     def __init__(
         self,
-        data_server: streamers.EmagerStreamerInterface,
+        streamer: streamers.EmagerStreamerInterface,
         n_ch: int,
         signal_fs: float,
         accumulate_t: float,
@@ -23,20 +23,24 @@ class RealTimeOscilloscope:
         """
         Create the Oscilloscope.
 
-        - data_server: implements read() method, returning a (n_samples, n_ch) array. Must return (0, n_ch) when no samples are available.
+        - streamer: implements read() method, returning a (n_samples, n_ch) array. Must return (0, n_ch) when no samples are available.
         - n_ch: number of "oscilloscope channels"
         - signal_fs: Signal sample rate [Hz]
         - accumulate_t: x-axis length [s]
         - refresh_rate: oscilloscope refresh rate [Hz]
         """
+        self.streamer = streamer
         self.n_ch = n_ch
         self.data_points = int(accumulate_t * signal_fs)
-        self.refresh_rate = refresh_rate
-        self.server = data_server
         self.samples_per_refresh = signal_fs // refresh_rate
+
+        print(
+            f"Data points: {self.data_points}, samples per refresh: {self.samples_per_refresh}"
+        )
 
         # Create a time axis
         self.t = np.linspace(0, accumulate_t, self.data_points)
+
         # Initialize the data buffer for each signal
         self.data = [np.zeros(self.data_points) for _ in range(n_ch)]
 
@@ -66,6 +70,7 @@ class RealTimeOscilloscope:
             )  # Remove axis title, keep axis lines
             graph = p.plot(self.t, self.data[i], pen=pg.mkPen(color="r", width=2))
             self.plots.append(graph)
+
         # Set up a QTimer to update the plot at the desired refresh rate
         self.timer = QTimer()
         self.timer.setTimerType(Qt.TimerType.PreciseTimer)
@@ -79,11 +84,13 @@ class RealTimeOscilloscope:
         self.tot_samples = 0
 
     def update(self):
+        # Fetch available data
         new_data = np.zeros((0, self.n_ch))
-        # Fetch all available data
         while len(new_data) < self.samples_per_refresh:
-            tmp_data = self.server.read()
-            if tmp_data.shape[0] == 0:
+            tmp_data = self.streamer.read()
+            print(len(tmp_data))
+            if len(tmp_data) == 0:
+                # no more samples ready
                 break
             new_data = np.vstack((new_data, tmp_data))
         new_data = np.transpose(new_data)
@@ -94,19 +101,14 @@ class RealTimeOscilloscope:
 
         self.tot_samples += nb_pts
         t = time.time()
-        log.info(
-            f"({t-self.t0:.3f} s), new data shape={new_data.shape}, total samples={self.tot_samples}, dt={t - self.timestamp:.3f} s"
-        )
+        log.info(f"Average fs={self.tot_samples/(t-self.t0):.3f}")
         self.timestamp = t
 
-        for i in range(self.n_ch):
+        for i, plot_item in enumerate(self.plots):
             self.data[i] = np.roll(self.data[i], -nb_pts)  # Shift the data
             # self.data[i][-nb_pts:] = signal.decimate(new_data[i],2)  # Add new data point
             self.data[i][-nb_pts:] = new_data[i]
-
-        for i, plot_item in enumerate(self.plots):
             plot_item.setData(self.t, self.data[i])
-        # print("time update:", time.time()-self.t1)
 
     def run(self):
         self.app.exec()
@@ -142,7 +144,7 @@ if __name__ == "__main__":
         print("Started serving data...")
 
     if GENERATE:
-        threading.Thread(target=generate_data).start()
+        threading.Thread(target=generate_data, daemon=True).start()
     else:
         c = ro.connect_to_pynq()
         t = threading.Thread(
@@ -153,6 +155,7 @@ if __name__ == "__main__":
     time.sleep(1)
 
     print("Starting client and oscilloscope...")
+    # stream_client = streamers.TcpStreamer(PORT, "localhost", False)
     stream_client = streamers.TcpStreamer(PORT, "localhost", False)
     oscilloscope = RealTimeOscilloscope(stream_client, 64, FS, 3, 30)
     oscilloscope.run()
