@@ -60,7 +60,7 @@ class RedisStreamer(EmagerStreamerInterface):
         self.set_labelling(labelling)
 
     def read(self):
-        data = self.r.pop_sample(self.labelling)
+        data = self.r.pop_sample(self.labelling, 0.001)
         if data == ():
             return np.ndarray((0, 64))
 
@@ -209,6 +209,8 @@ class TcpStreamer(EmagerStreamerInterface):
         if listen:
             self.sock.bind((host, port))
             self.sock.listen()
+        else:
+            self.sock.settimeout(0.001)
 
         self.open()
 
@@ -251,10 +253,11 @@ class TcpStreamer(EmagerStreamerInterface):
 
         Returns a (n_samples, n_ch) array
         """
-        data = self.conn.recv(16384)
-        if not data:
+        try:
+            data = self.conn.recv(16384)
+            return np.frombuffer(data, dtype=np.int16).reshape((-1, 64))
+        except TimeoutError:
             return np.ndarray((0, 64))
-        return np.frombuffer(data, dtype=np.int16).reshape((-1, 64))
 
     def write(self, data: np.ndarray, labels: Union[np.ndarray, None] = None):
         self.conn.sendall(data.astype(np.int16).tobytes())

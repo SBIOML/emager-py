@@ -86,9 +86,8 @@ class RealTimeOscilloscope:
     def update(self):
         # Fetch available data
         new_data = np.zeros((0, self.n_ch))
-        while len(new_data) < self.samples_per_refresh:
+        while True:
             tmp_data = self.streamer.read()
-            print(len(tmp_data))
             if len(tmp_data) == 0:
                 # no more samples ready
                 break
@@ -101,7 +100,9 @@ class RealTimeOscilloscope:
 
         self.tot_samples += nb_pts
         t = time.time()
-        log.info(f"Average fs={self.tot_samples/(t-self.t0):.3f}")
+        log.info(
+            f"(dt={t-self.timestamp:.3f}) Average fs={self.tot_samples/(t-self.t0):.3f}"
+        )
         self.timestamp = t
 
         for i, plot_item in enumerate(self.plots):
@@ -122,12 +123,11 @@ if __name__ == "__main__":
 
     eutils.set_logging()
 
+    GENERATE = False
     FS = 1000
-    BATCH = 1
-    GENERATE = True
+    BATCH = 50
     PORT = 12347
     HOST = er.get_docker_redis_ip() if GENERATE else "pynq"
-    # HOST = "pynq"
 
     def generate_data():
         # rs = streamers.RedisStreamer(HOST, False)
@@ -146,16 +146,24 @@ if __name__ == "__main__":
     if GENERATE:
         threading.Thread(target=generate_data, daemon=True).start()
     else:
+        r = er.EmagerRedis(HOST)
+        r.set_sampling_params(FS, BATCH, 1000000000)
+        r.set_rhd_sampler_params(
+            en_dsp=0,
+            # bitstream="/home/xilinx/workspace/rhd2164-driver/examples/python/pynq/bitfile/design_1.bit",
+            bitstream="/home/xilinx/workspace/emager-pynq/bitfile/finn-accel.bit",
+        )
+        r.clear_data()
         c = ro.connect_to_pynq()
         t = threading.Thread(
             target=ro.run_remote_finn,
-            args=(c, ro.DEFAULT_EMAGER_PYNQ_PATH, "rhd-sampler/build/rhd_sampler"),
+            args=(c, ro.DEFAULT_EMAGER_PYNQ_PATH, "rhd_sampler"),
         ).start()
 
     time.sleep(1)
 
     print("Starting client and oscilloscope...")
+    stream_client = streamers.RedisStreamer(HOST, False)
     # stream_client = streamers.TcpStreamer(PORT, "localhost", False)
-    stream_client = streamers.TcpStreamer(PORT, "localhost", False)
     oscilloscope = RealTimeOscilloscope(stream_client, 64, FS, 3, 30)
     oscilloscope.run()
