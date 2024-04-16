@@ -55,7 +55,6 @@ def step_insert_ip_into_bd(model: ModelWrapper, cfg: build_cfg.DataflowBuildConf
             idx = i
             zynq_shell_template.pop(i)
             break
-    print(idx)
 
     ip_to_insert: str = CUSTOM_MODEL_PROPERTIES["custom_ip_path"]
     with open(
@@ -131,12 +130,13 @@ def insert_custom_ip(ip_tcl_script: str, **kwargs):
     Parameters:
         - ip_tcl_script: Path to the custom IP to be inserted into the Vivado project, which must contain some Tcl code to insert the IP into Vivado.
         - kwargs: Variables that are to be substituted in the Tcl script before Vivado invocation. In the Tcl script, they must be written as `$$<VAR_NAME>` placeholders.
+            For example, if a Tcl script has a placeholder `$$MY_VAR`, then call this function with kwargs: MY_VAR='value'.
 
     Returns the updated `CUSTOM_MODEL_PROPERTIES` dictionary.
     """
     CUSTOM_MODEL_PROPERTIES["custom_ip_path"] = ip_tcl_script
     for key, value in kwargs.items():
-        CUSTOM_MODEL_PROPERTIES["custom_ip" + key] = value
+        CUSTOM_MODEL_PROPERTIES["custom_ip_" + key] = value
     log.info(f"Updated CUSTOM_MODEL_PROPERTIES: {CUSTOM_MODEL_PROPERTIES}")
     return CUSTOM_MODEL_PROPERTIES
 
