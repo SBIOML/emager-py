@@ -1,19 +1,15 @@
 import numpy as np
 from scipy import signal
 
+import emager_py.transforms as etrans
 import emager_py.dataset as ed
 import emager_py.quantization as dq
 import emager_py.utils as utils
 
 
-def filter_utility(data, fs=1000, Q=30, notch_freq=60):
-    b_notch, a_notch = signal.iirnotch(notch_freq, Q, fs)
-    return signal.filtfilt(b_notch, a_notch, data, axis=0)
-
-
 def extract_labels(data_array):
     """
-    Given a 4D data array, it will extract the data and labels from the array.
+    Given a 4D data array, extract the data and labels from the array.
 
     @param data_array of shape (labels, nb_exp, nb_samples, nb_channels)
 
@@ -37,6 +33,22 @@ def extract_labels(data_array):
                 * (label * nb_exp + experiment + 1)
             ] = label
     return X, y
+
+
+def extract_labels_and_roll(data, roll_range, v_dim=4, h_dim=16):
+    """
+    From raw 4D `data`, extract labels and apply ABSDA to the array, returning a tuple of (data, labels), with shapes (2D, 1D)
+    """
+    emg, labels = extract_labels(data)
+    emg_rolled = roll_data(emg, roll_range, v_dim, h_dim)
+    nb_rolled = int(emg_rolled.shape[0] // labels.shape[0])
+    labels_rolled = np.tile(labels, nb_rolled)
+    return emg_rolled, labels_rolled
+
+
+def filter_utility(data, fs=1000, Q=30, notch_freq=60):
+    b_notch, a_notch = signal.iirnotch(notch_freq, Q, fs)
+    return signal.filtfilt(b_notch, a_notch, data, axis=0)
 
 
 def preprocess_data(data_array, window_length=25, fs=1000, Q=30, notch_freq=60):
@@ -153,15 +165,103 @@ def compress_data(data, method="minmax"):
         raise ValueError("Invalid compression method")
 
 
-def extract_labels_and_roll(data, roll_range, v_dim=4, h_dim=16):
+def prepare_shuffled_datasets(
+    data, shuffle=True, split=0.8, absda="train", transform=None
+):
     """
-    From raw 4D `data`, extract labels and apply ABSDA to the array, returning a tuple of (data, labels), with shapes (2D, 1D)
+    Prepare a typical shuffled dataset with no special LOOCV.
+
+    Parameters:
+        - `data`: data array with shape (n_gestures, n_repetitions, n_samples, n_features)
+        - `split`: the ratio of training data to test data
+        - `absda` : "train", "test", "both", or "none", which data to apply ABSDA to
+        - `transform` : transformation to apply to the data, can be one of `emager_py.transforms` (str) or `callable`
+
+    Returns a tuple of ((data, labels), (left_out, left_out_labels)) which can directly be used to create a TensorDataset and DataLoader, for example
     """
-    emg, labels = extract_labels(data)
-    emg_rolled = roll_data(emg, roll_range)
-    nb_rolled = int(emg_rolled.shape[0] // labels.shape[0])
-    labels_rolled = np.tile(labels, nb_rolled)
-    return emg_rolled, labels_rolled
+
+    data, labels = extract_labels(data)
+
+    if transform is not None:
+        if isinstance(transform, str):
+            transform = etrans.transforms_lut[transform]
+        data = transform(data)
+        labels = labels[:: utils.get_transform_decimation(transform)]
+
+    data = np.hstack((data, labels.reshape(-1, 1)))
+
+    if shuffle:
+        np.random.shuffle(data)  # in-place
+
+    ds_len = len(data)
+    ds_split = int(ds_len * split)
+
+    train_ds = data[0:ds_split]
+    test_ds = data[ds_split:]
+
+    train_data, train_labels = np.hsplit(train_ds, [-1])
+    test_data, test_labels = np.hsplit(test_ds, [-1])
+
+    train_labels = np.reshape(train_labels, (-1,))
+    test_labels = np.reshape(test_labels, (-1,))
+
+    if absda == "train":
+        train_data = roll_data(train_data, 2)
+        nb_rolled = int(len(train_data) // len(train_labels))
+        train_labels = np.tile(train_labels, nb_rolled)
+    elif absda == "test":
+        test_data = roll_data(test_data, 2)
+        nb_rolled = int(len(test_data) // len(test_labels))
+        test_labels = np.tile(test_labels, nb_rolled)
+    elif absda == "both":
+        train_data = roll_data(train_data, 2)
+        nb_rolled = int(len(train_data) // len(train_labels))
+        train_labels = np.tile(train_labels, nb_rolled)
+        test_data = roll_data(test_data, 2)
+        test_labels = np.tile(test_labels, nb_rolled)
+
+    return (train_data, train_labels), (test_data, test_labels)
+
+
+def prepare_loocv_datasets(
+    data: np.ndarray,
+    left_out: np.ndarray,
+    absda="train",
+    transform=None,
+):
+    """
+    Prepare the LOOCV datasets.
+
+    Parameters:
+        - `data`: "non"-left out data
+        - `left_out`: left out data array
+        - `absda` : "train", "test", "both", or "none", which data to apply ABSDA to
+        - `transform` : transformation to apply to the data, can be one of `emager_py.transforms` (str) or `callable`
+
+    Returns a tuple of ((data, labels), (left_out, left_out_labels)) which can directly be used to create a TensorDataset and DataLoader, for example
+    """
+    if transform is not None:
+        if isinstance(transform, str):
+            transform = etrans.transforms_lut[transform]
+        data = transform(data)
+        left_out = transform(left_out)
+
+    data_labels = None
+    lo_labels = None
+    if absda == "train":
+        data, data_labels = extract_labels_and_roll(data, 2)
+        left_out, lo_labels = extract_labels(left_out)
+    elif absda == "test":
+        data, data_labels = extract_labels(data)
+        left_out, lo_labels = extract_labels_and_roll(left_out, 2)
+    elif absda == "both":
+        data, data_labels = extract_labels_and_roll(data, 2)
+        left_out, lo_labels = extract_labels_and_roll(left_out, 2)
+    else:
+        data, data_labels = extract_labels(data)
+        left_out, lo_labels = extract_labels(left_out)
+
+    return (data, data_labels), (left_out, lo_labels)
 
 
 def shuffle_dataset(data: np.ndarray, labels: np.ndarray, block_size: int):
@@ -187,51 +287,10 @@ def shuffle_dataset(data: np.ndarray, labels: np.ndarray, block_size: int):
 
 
 if __name__ == "__main__":
-    # generate sinus of 60 hz
-    ret = filter_utility(np.zeros((1000, 10)))
-
     data_array = ed.load_emager_data(
         utils.DATASETS_ROOT + "EMAGER/", "000", "002", differential=False
     )
-    print(data_array.shape)
-    # preprocess the data
-    averages = preprocess_data(data_array)
-    print(np.shape(averages))
 
-    # Visualize the data
-
-    # roll the data
-    rolled = roll_data(averages, 2)
-    print(np.shape(rolled))
-    X, y = extract_labels(data_array)
-
-    y = np.array(y, dtype=np.uint8)
-    print(np.shape(X))
-    _TIME_LENGTH = 25
-    _VOTE_LENGTH = 150
-    nb_votes = int(np.floor(_VOTE_LENGTH / _TIME_LENGTH))
-
-    expected = np.array(
-        [
-            np.argmax(np.bincount(y[i : i + _TIME_LENGTH]))
-            for i in range(0, len(y), _TIME_LENGTH)
-        ]
+    data = prepare_shuffled_datasets(
+        data_array, split=0.8, absda="train", transform=etrans.default_processing
     )
-    maj_expected = np.array(
-        [
-            np.argmax(np.bincount(expected[i : i + nb_votes]))
-            for i in range(0, len(expected), nb_votes)
-        ]
-    )
-
-    print(np.shape(expected))
-    print(np.shape(maj_expected))
-
-    """
-    example usage (sd.save_training_data)
-    data_array = getData_EMG(dataset_path, subject, session, differential=False)
-    averages_data = dp.preprocess_data(data_array)
-    compressed_data = dp.compress_data(averages_data, method=compressed_method)
-    rolled_data = dp.roll_data(compressed_data, 2)
-    X, y = dp.extract_with_labels(rolled_data)
-    """

@@ -146,6 +146,40 @@ class EmagerRedis:
     def set_pynq_params(self, transform: str):
         self.set(self.TRANSFORM_KEY, transform.encode())
 
+    def dump_labelled_to_numpy(self, poppush: bool = True):
+        """
+        Dump Redis samples and labels FIFOs to numpy arrays, compatible with the `emager_py.dataset` format.
+
+        Returns the dumped data as a numpy array of shape (n_labels, 1, n_samples, 64).
+        """
+        samples = {}
+
+        sample_batches_in_fifo = self.r.llen(self.SAMPLES_FIFO_KEY)
+        label_batches_in_fifo = self.r.llen(self.LABELS_FIFO_KEY)
+
+        log.info(
+            f"Sample batches in FIFO: {sample_batches_in_fifo}, labels: {label_batches_in_fifo}"
+        )
+
+        for i in range(min(sample_batches_in_fifo, label_batches_in_fifo)):
+            data, labels = None, None
+            if poppush:
+                data, labels = self.poppush_sample()
+            else:
+                data, labels = self.pop_sample(is_labelled=True)
+            label = str(labels[0])
+            if label not in samples:
+                log.info(f"Creating new label {label}")
+                samples[label] = np.ndarray((0, 64), dtype=np.int16)
+
+            samples[label] = np.vstack((samples[label], data.reshape((-1, 64))))
+
+        minlen = min([v.shape[0] for v in samples.values()])
+
+        return np.expand_dims(
+            np.array([samples[k][:minlen] for k in sorted(samples.keys())]), axis=1
+        )
+
     def __del__(self):
         self.r.close()
 
@@ -188,6 +222,9 @@ def start_docker_redis():
 
 if __name__ == "__main__":
     import emager_py.finn.remote_operations as ro
+    import emager_py.utils as eutils
+
+    eutils.set_logging()
 
     r = EmagerRedis("pynq")
     r.clear_data()
@@ -195,6 +232,8 @@ if __name__ == "__main__":
     r.set_rhd_sampler_params(
         20, 300, 0, 15, ro.DEFAULT_EMAGER_PYNQ_PATH + "/bitfile/finn-accel.bit"
     )
-    r.push_sample(np.random.randint(0, 100, (64, 64)), np.random.randint(0, 6, 64))
-    print(len(r.pop_sample(False, 1)))
-    print(len(r.pop_sample(True, 1)))
+    for i in range(12):
+        labels = np.arange(6)
+        r.push_sample(np.random.randint(0, 100, (25, 64)), labels[i % len(labels)])
+    dumped = r.dump_labelled_to_numpy()
+    print(dumped.shape)

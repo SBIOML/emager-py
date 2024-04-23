@@ -1,51 +1,151 @@
+"""
+EMaGer dataset routines.
+
+This dataset contains data from 13 subjects, labeled 0 to 12.
+
+The dataset is structured in the following way:
+
+`<EMAGER>/<subject_id>/<session>/<filename>.csv`
+
+Where:
+
+- `<subject_id>` is the subject ID from 000 to 012
+- `<session>` is the session number, usually either `session_0` or `session_1`
+- `<filename>.csv`, ie `002-001-003-009-right.csv`:
+  - `002` is the subject ID
+  - `001` is the session number
+  - `003` is the gesture id
+  - `009` is the segment number for the given gesture
+  - `right` recording done on the right forearm
+
+This module provides routines to load, process and save EMaGer dataset-compatible data. 
+
+The saving/loading routines expect the data arrays to have the following shape:
+    (nb_gesture, nb_repetition, samples, num_channels)
+
+Usually, the entry point is `load_emager_data`, which can load any subject and session from the dataset including pre-processed data.
+Then, use functions from `emager_py.data_processing` to process the data, extract the labels, shuffle in batches the dataset, etc.
+"""
+
 import numpy as np
-import emager_py.data_processing as dp
-import emager_py.quantization as dc
-import emager_py.utils as eutils
 import logging as log
 import os
 
+import emager_py.data_processing as dp
+import emager_py.utils as eutils
 
-def load_emager_data(path, subj, ses, differential=False):
+_DATASET_TEMPLATE = {
+    "subject": "%s/",
+    "session": "session_%s/",
+    "repetition": "%s-%s-%s-%s-%s.csv",
+}
+
+
+def format_subject(subject: int) -> str:
+    return _DATASET_TEMPLATE["subject"] % str(subject).zfill(3)
+
+
+def format_session(session: int) -> str:
+    return _DATASET_TEMPLATE["session"] % str(session).zfill(3)
+
+
+def format_repetition(subject, session, gesture, repetition, arm="right") -> str:
+    if len(arm) == 0:
+        template = _DATASET_TEMPLATE["repetition"].rstrip("-")
+    else:
+        template = _DATASET_TEMPLATE["repetition"]
+
+    return template % (
+        str(subject).zfill(3),
+        str(session).zfill(3),
+        str(gesture).zfill(3),
+        str(repetition).zfill(3),
+        arm,
+    )
+
+
+def get_subjects(path):
+    """
+    List all subjects in EMaGer dataset.
+
+    TODO: Add rotation experiments
+    """
+
+    def filt(d):
+        try:
+            int(d)
+            return True
+        except ValueError:
+            return False
+
+    return list(filter(lambda d: filt(d), os.listdir(path)))
+
+
+def get_sessions():
+    """
+    Get the sessions from EMaGer dataset.
+
+    TODO: Add rotation experiments
+    """
+    return ["001", "002"]
+
+
+def get_repetitions():
+    """
+    Get the number of repetitions for every gesture.
+
+    TODO: actually read from disks what repetitions exist.
+    """
+    return [f"{i:03d}" for i in range(10)]
+
+
+def load_emager_data(dataset_path, subject, session, differential=False, floor_to=100):
     """
     Load EMG data from EMaGer v1 dataset.
 
     Params:
-        - path : path to EMaGer root
+        - path : path to EMaGer dataset root, or any emager-complying dataset.
         - user_id : subject id
         - session_nb : session number
 
     Returns the raw loaded data (0-65535) with shape (nb_gesture, nb_repetition, samples, num_channels)
     """
 
-    # Parameters
-    # user_id = "001"
-    # session_nb = "000"
-    nb_gesture = 6
-    nb_repetition = 10
-    nb_pts = 5000
-    start_path = "%s/%s/session_%s/" % (path, subj, ses)
-    data_array = np.zeros((nb_gesture, nb_repetition, 64, nb_pts), dtype=int)
+    assert os.path.exists(dataset_path), f"Dataset path {dataset_path} not found."
 
-    first_file = os.listdir(start_path)[0]
-    arm_used = "right" if "right" in first_file else "left"
+    base_path = dataset_path + format_subject(subject) + format_session(session)
+    log.info(base_path)
+
+    files = os.listdir(base_path)
+    gesture_toks = [int(f.split("-")[2]) for f in files]
+    rep_toks = [int(f.split("-")[3]) for f in files]
+
+    nb_gesture = max(gesture_toks) + 1
+    nb_repetition = max(rep_toks) + 1
+    nb_pts = 10000000
+
+    first_file = os.listdir(base_path)[0]
+    arm_used = (
+        "right" if "right" in first_file else "left" if "left" in first_file else ""
+    )
+    gest_rep_arrays = []
     for gest in range(nb_gesture):
         for rep in range(nb_repetition):
-            path = (
-                start_path
-                + subj
-                + "-"
-                + ses
-                + "-00"
-                + str(gest)
-                + "-00"
-                + str(rep)
-                + "-"
-                + arm_used
-                + ".csv"
+            dataset_path = base_path + format_repetition(
+                subject, session, gest, rep, arm=arm_used
             )
-            one_file = np.transpose(np.loadtxt(path, delimiter=","))
+            new_data = np.loadtxt(dataset_path, delimiter=",")
+            gest_rep_arrays.append(new_data)
+            if len(new_data) < nb_pts:
+                nb_pts = len(new_data)
+    nb_pts = nb_pts - (nb_pts % floor_to)
+    data_array = np.zeros((nb_gesture, nb_repetition, 64, nb_pts), dtype=int)
+
+    for gest in range(nb_gesture):
+        for rep in range(nb_repetition):
+            one_file = np.transpose(gest_rep_arrays[gest * nb_repetition + rep])
             data_array[gest, rep, :, :] = one_file[:, -nb_pts:]
+
     if differential:
         data_array = np.reshape(data_array, (nb_gesture, nb_repetition, 16, 4, nb_pts))
         final_array = data_array[:, :, :, 0:3, :] - data_array[:, :, :, 1:4, :]
@@ -53,7 +153,9 @@ def load_emager_data(path, subj, ses, differential=False):
     else:
         final_array = data_array
     final_array = np.swapaxes(final_array, 2, 3)
-    log.info(f"Loaded subject {subj} session {ses}. Data shape {final_array.shape}.")
+    log.info(
+        f"Loaded subject {subject} session {session}. Data shape {final_array.shape}."
+    )
     return final_array
 
 
@@ -128,130 +230,151 @@ def generate_raw_validation_data(
     return raw_data, labels
 
 
-def get_processed_data_array(path, subj, ses) -> np.ndarray:
+def process_save_dataset(data, out_path: str, transform: callable) -> str:
     """
-    Load and process a data array from parameters.
+    Process and save a dataset as numpy array to disk.
 
-    Returns an array of shape (n_samples, 65), where the last column are the labels
-      and the rest are the processed EMG channels' signals
+    Parameters:
+        - `data`: np array of shape (n_gestures, n_reps, n_samples, n_channels)
+        - `out_path`: path to save the processed dataset
+
+    The `transform` must take in a Numpy array of shape (n_samples, n_channels) and return the transformed array with the same dimensions.
+
+    The processed dataset has the exact same structure as the original EMaGer dataset.
     """
-    data_array = load_emager_data(path, subj, ses)
-    processed = dp.preprocess_data(data_array)
-    compressed = dc.nroot_c(processed, 2.5, 20000)
-    X, y = dp.extract_with_labels(compressed)
 
-    X_rolled = dp.roll_data(X, 2)
+    if len(data.shape) == 2:
+        data = np.reshape(data, (1, 1, *data.shape))
+    elif len(data.shape) != 4:
+        raise ValueError(
+            "Data shape must be (n_gestures, n_reps, n_samples, n_channels)"
+        )
 
-    # Copy the labels to be the same size as the data
-    nb_rolled = int(np.floor(X_rolled.shape[0] / y.shape[0]))
-    y_rolled = np.tile(y, nb_rolled)
-    y_rolled = np.array(y_rolled, dtype=np.uint8)
-
-    log.info(
-        f"Loaded processed subject {subj} session {ses}. Data shape {X_rolled.shape}, labels shape {y_rolled.shape}."
-    )
-
-    return np.hstack((X_rolled, y_rolled.reshape((-1, 1))))
-
-
-def get_train_test_data_arrays(path, subj, ses, split=0.8) -> np.ndarray:
-    """
-    Get train and test datasets from parameters. Loads the data from disk.
-
-    Returns a tuple: `(train_ds`, `test_ds)`. Both datasets are of shape (n_samples, 65),
-    where the last column are the labels and the rest are the processed EMG channels' signals
-    """
-    ds = get_processed_data_array(path, subj, ses)
-
-    np.random.shuffle(ds)  # in-place
-
-    ds_len = len(ds)
-    ds_split = int(ds_len * split)
-
-    train_ds = ds[0:ds_split]
-    test_ds = ds[ds_split:]
-
-    log.info(f"Train preprocessed dataset len : {len(train_ds)}")
-    log.info(f"Test preprocessed dataset len : {len(test_ds)}")
-
-    return train_ds, test_ds
-
-
-def load_processed_data(path, subj, ses, train=False) -> np.ndarray:
-    log.info(f"Attempting to load subject {subj} session {ses} from npz")
-    t = "train" if train else "test"
-    return np.load(f"{path}/{subj}_{ses}_{t}.npz")
-
-
-def process_then_save_all_test_train(dataset_path, out_path, transform=None):
-    subjects = get_subjects()
-    sessions = get_sessions()
-
+    out_path = out_path + "/" + transform.__name__ + "/"
     if not os.path.exists(out_path):
         os.makedirs(out_path)
 
+    nb_gesture = data.shape[0]
+    nb_rep = data.shape[1]
+
+    for gesture in range(nb_gesture):
+        for rep in range(nb_rep):
+            processed_data = transform(data[gesture, rep, :, :])
+            np.savetxt(
+                out_path + format_repetition("", "", gesture, rep, ""),
+                processed_data,
+                delimiter=",",
+            )
+
+    log.info(f"Saved processed dataset to {out_path}")
+    return out_path
+
+
+def load_process_save_dataset(
+    dataset_path: str, out_path: str, transform: callable, subjects=None, sessions=None
+):
+    """
+    Load EMaGer dat from disk, process it and save it to disk.
+
+    The `transform` must take in a Numpy array of shape (n_samples, n_channels) and return the transformed array with the same dimensions.
+
+    The processed dataset has the exact same structure as the original EMaGer dataset.
+    """
+    out_path = out_path + "/" + transform.__name__ + "/"
+    if not os.path.exists(out_path):
+        os.makedirs(out_path)
+
+    if not subjects:
+        subjects = get_subjects(dataset_path)
+    elif isinstance(subjects, int):
+        subjects = [subjects]
+
+    if not sessions:
+        sessions = get_sessions()
+    elif isinstance(sessions, int):
+        sessions = [sessions]
+
     for subject in subjects:
         for session in sessions:
-            train, test = get_train_test_data_arrays(
-                dataset_path,
-                subject,
-                session,
-            )
-
-            train_data = train[:, :-1]
-            train_label = train[:, -1]
-
-            test_data = test[:, :-1]
-            test_label = test[:, -1]
-
-            if transform is not None:
-                train_data, test_data = transform(train_data), transform(test_data)
-
-            trn_name = f"{out_path}/{subject}_{session}_train.npz"
-            test_name = f"{out_path}/{subject}_{session}_test.npz"
-
-            log.info(f"Saving subject {subject} session {session} to {trn_name}")
-            np.savez(
-                trn_name,
-                emg=train_data,
-                label=train_label,
-            )
-            log.info(f"Saving subject {subject} session {session} to {test_name}")
-            np.savez(
-                test_name,
-                emg=test_data,
-                label=test_label,
-            )
+            session_data = load_emager_data(dataset_path, subject, session)
+            process_save_dataset(session_data, out_path, transform)
+    return out_path
 
 
-def get_subjects(path):
+def get_intersession_cv_datasets(dataset_path: str, subject):
     """
-    List all subjects in EMaGer dataset.
+    Get an inter-session cross-validation dataset.
 
-    TODO: Add rotation experiments
+    This can easily be used as a train/test dataset.
     """
 
-    def filt(d):
-        try:
-            int(d)
-            return True
-        except ValueError:
-            return False
-
-    return list(filter(lambda d: filt(d), os.listdir(path)))
+    sessions = get_sessions()
+    return tuple([load_emager_data(dataset_path, subject, s) for s in sessions])
 
 
-def get_sessions():
+def get_intrasession_loocv_datasets(
+    dataset_path: str, subject, session, test_session_id: int | list[int]
+):
     """
-    Get the sessions from EMaGer dataset.
+    Get the Leave-One-Out Cross Validation datasets from EMaGer dataset.
 
-    TODO: Add rotation experiments
+    This can easily be used as a train/test dataset.
     """
-    return ["001", "002"]
+
+    if isinstance(test_session_id, int):
+        test_session_id = [test_session_id]
+
+    assert os.path.exists(dataset_path), f"Dataset path {dataset_path} not found."
+
+    data = load_emager_data(dataset_path, subject, session)
+    lo_data = np.ndarray((data.shape[0], 0, *data.shape[2:]), dtype=data.dtype)
+
+    for lo in test_session_id:
+        assert f"{lo:03d}" in get_subjects(
+            dataset_path
+        ), f"Subject {lo} not found in dataset."
+        new_data = np.expand_dims(data[:, lo, :, :], axis=1)
+        lo_data = np.concatenate((lo_data, new_data), axis=1)
+
+    for lo in test_session_id:
+        data = np.delete(data, lo, axis=1)
+
+    log.info(
+        f"Loaded LOOCV datasets for subject {subject} session {session} with shapes {data.shape}, {lo_data.shape}."
+    )
+    return data, lo_data
 
 
-def get_repetitions():
+if __name__ == "__main__":
+    from emager_py import utils
+    from emager_py import transforms
+
+    utils.set_logging()
     """
-    Get the number of repetitions for every gesture.
+    processed_path = load_process_save_dataset(
+        "/home/gabrielgagne/Documents/Datasets/EMAGER/",
+        "/home/gabrielgagne/Documents/Datasets/PEMAGER",
+        transforms.root_processing,
+        [0, 1, 2],
+        1,
+    )
     """
-    return 10
+    processed_path = "/home/gabrielgagne/Documents/Datasets/PEMAGER/root_processing/"
+    load_emager_data(processed_path, 1, 1)
+    """
+    print(
+        get_subjects("/home/gabrielgagne/Documents/Datasets/EMAGER/"),
+        get_sessions(),
+        get_repetitions(),
+    )
+    """
+    d, lo = get_intrasession_loocv_datasets(
+        "/home/gabrielgagne/Documents/Datasets/EMAGER/", 3, 1, [1, 2, 3]
+    )
+    print(d.shape, lo.shape)
+    """
+    d, lo = get_intersession_cv_datasets(
+        "/home/gabrielgagne/Documents/Datasets/EMAGER/", 0
+    )
+    print(d.shape, lo.shape)
+    """
