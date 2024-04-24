@@ -21,7 +21,7 @@ Where:
 This module provides routines to load, process and save EMaGer dataset-compatible data. 
 
 The saving/loading routines expect the data arrays to have the following shape:
-    (nb_gesture, nb_repetition, samples, num_channels)
+- (nb_gesture, nb_repetition, samples, num_channels), denoted as (G, R, N, C) OR (G, R, N, H, W) for images, where C = H*W
 
 Usually, the entry point is `load_emager_data`, which can load any subject and session from the dataset including pre-processed data.
 Then, use functions from `emager_py.data_processing` to process the data, extract the labels, shuffle in batches the dataset, etc.
@@ -108,7 +108,7 @@ def load_emager_data(dataset_path, subject, session, differential=False, floor_t
         - user_id : subject id
         - session_nb : session number
 
-    Returns the raw loaded data (0-65535) with shape (nb_gesture, nb_repetition, samples, num_channels)
+    Returns the raw u16 data formatted as GRNC.
     """
 
     assert os.path.exists(dataset_path), f"Dataset path {dataset_path} not found."
@@ -240,7 +240,7 @@ def process_save_dataset(data, out_path: str, transform: callable) -> str:
 
     The `transform` must take in a Numpy array of shape (n_samples, n_channels) and return the transformed array with the same dimensions.
 
-    The processed dataset has the exact same structure as the original EMaGer dataset.
+    The processed dataset has the exact same folder structure as the original EMaGer dataset.
     """
 
     if len(data.shape) == 2:
@@ -274,11 +274,11 @@ def load_process_save_dataset(
     dataset_path: str, out_path: str, transform: callable, subjects=None, sessions=None
 ):
     """
-    Load EMaGer dat from disk, process it and save it to disk.
+    Load EMaGer-compatible dataset from disk, process it and save it back to disk with the same folder structure.
 
     The `transform` must take in a Numpy array of shape (n_samples, n_channels) and return the transformed array with the same dimensions.
 
-    The processed dataset has the exact same structure as the original EMaGer dataset.
+    Returns the new dataset root path.
     """
     out_path = out_path + "/" + transform.__name__ + "/"
     if not os.path.exists(out_path):
@@ -306,6 +306,8 @@ def get_intersession_cv_datasets(dataset_path: str, subject):
     Get an inter-session cross-validation dataset.
 
     This can easily be used as a train/test dataset.
+
+    Returns a tuple of two datasets: (train, test)
     """
 
     sessions = get_sessions()
@@ -313,54 +315,38 @@ def get_intersession_cv_datasets(dataset_path: str, subject):
 
 
 def get_intrasession_loocv_datasets(
-    dataset_path: str, subject, session, test_session_id: int | list[int]
+    dataset_path: str, subject, session, test_rep: int | list[int]
 ):
     """
     Get the Leave-One-Out Cross Validation datasets from EMaGer dataset.
 
     This can easily be used as a train/test dataset.
+
+    Returns a tuple of datasets: (train, test), each as GRNC arrays.
     """
 
-    if isinstance(test_session_id, int):
-        test_session_id = [test_session_id]
+    if isinstance(test_rep, int):
+        test_rep = [test_rep]
 
     assert os.path.exists(dataset_path), f"Dataset path {dataset_path} not found."
 
     data = load_emager_data(dataset_path, subject, session)
     lo_data = np.ndarray((data.shape[0], 0, *data.shape[2:]), dtype=data.dtype)
 
-    for lo in test_session_id:
+    for lo in test_rep:
         assert f"{lo:03d}" in get_subjects(
             dataset_path
         ), f"Subject {lo} not found in dataset."
         new_data = np.expand_dims(data[:, lo, :, :], axis=1)
         lo_data = np.concatenate((lo_data, new_data), axis=1)
 
-    for lo in test_session_id:
+    for lo in test_rep:
         data = np.delete(data, lo, axis=1)
 
     log.info(
         f"Loaded LOOCV datasets for subject {subject} session {session} with shapes {data.shape}, {lo_data.shape}."
     )
     return data, lo_data
-
-
-def get_triplets(X, y, n):
-    anchor_ind = np.array([])
-    positive_ind = np.array([])
-    negative_ind = np.array([])
-    for c in np.unique(y):
-        c_ind = np.where(y == c)[0]
-        c_ind = np.random.choice(c_ind, n * 2, replace=False)
-        nc_ind = np.where(y != c)[0]
-        nc_ind = np.random.choice(nc_ind, n, replace=False)
-        anchor_ind = np.append(anchor_ind, c_ind[0:n])
-        positive_ind = np.append(positive_ind, c_ind[n:])
-        negative_ind = np.append(negative_ind, nc_ind)
-    anchor_dataset = X[anchor_ind.astype(int)]
-    positive_dataset = X[positive_ind.astype(int)]
-    negative_dataset = X[negative_ind.astype(int)]
-    return anchor_dataset, positive_dataset, negative_dataset
 
 
 if __name__ == "__main__":

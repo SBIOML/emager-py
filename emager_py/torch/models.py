@@ -133,10 +133,7 @@ class EmagerSCNN(L.LightningModule):
         """
         super().__init__()
 
-        self.loss = etl.OnlineTripletLoss(
-            0.2, etu.SemihardNegativeTripletSelector(0.2, False)
-        )
-        # self.loss = nn.TripletMarginLoss(margin=0.2)
+        self.loss = nn.TripletMarginLoss(margin=0.2)
         self.input_shape = input_shape
 
         output_sizes = [32, 32, 32]
@@ -195,29 +192,19 @@ class EmagerSCNN(L.LightningModule):
 
     def training_step(self, batch, batch_idx):
         # training_step defines the train loop. It is independent of forward
-        x, y_true = batch
-        embeddings = self(x)
-        loss, n_triplets = self.loss(embeddings, y_true)
+        x1, x2, x3 = batch
+        anchor, positive, negative = self(x1), self(x2), self(x3)
+        loss = self.loss.forward(anchor, positive, negative)
         self.log("train_loss", loss)
-        self.log("triplets_generated", n_triplets)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        x, y_true = batch
-        # embeddings has shape (batchsize, embedding_size)
-        embeddings = self(x)
-
-        # class_embeddings has shape = (n_class, batchsize)
-        class_embeddings = torch.zeros((6, embeddings.shape[1])).to(self.device)
-        for i in range(len(class_embeddings)):
-            class_idx = torch.where(y_true == i)[0]
-            s = torch.sum(embeddings[class_idx], dim=0)
-            class_embeddings[i] = s / len(s)
-
-        embeddings = torch.transpose(embeddings, 0, 1) / torch.norm(embeddings, dim=1)
-        preds = torch.matmul(class_embeddings, embeddings)
-        acc = (preds.argmax(dim=0) == y_true).sum().item() / len(y_true)
-        self.log("val_acc", acc)
+        # training_step defines the train loop. It is independent of forward
+        x1, x2, x3 = batch
+        anchor, positive, negative = self(x1), self(x2), self(x3)
+        loss = self.loss.forward(anchor, positive, negative)
+        self.log("val_loss", loss)
+        return loss
 
     def test_step(self, batch, batch_idx):
         x, y_true = batch
@@ -247,14 +234,21 @@ if __name__ == "__main__":
     import emager_py.transforms as etrans
 
     eutils.set_logging()
-    train, val = etd.get_loocv_dataloaders(
+
+    """train, val = etd.get_loocv_dataloaders(
         eutils.DATASETS_ROOT + "EMAGER/",
         "000",
         "001",
         9,
         transform=etrans.default_processing,
+    )"""
+    train, val, test = etd.get_triplet_dataloaders(
+        "/Users/gabrielgagne/Documents/Datasets/EMAGER/",
+        0,
+        2,
+        9,
     )
-    # model = EmagerSCNN((4, 16), 2)
+    model = EmagerSCNN((4, 16), 2)
     # 561k w/o quant, 545K with quant
     model = EmagerCNN((4, 16), 6, 2)
     trainer = L.Trainer(

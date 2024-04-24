@@ -286,11 +286,40 @@ def shuffle_dataset(data: np.ndarray, labels: np.ndarray, block_size: int):
     return data, labels
 
 
+def generate_triplets(data: np.ndarray, labels: np.ndarray, n: int):
+    """
+    Generate triplets from a NC or NHW dataset and its labels.
+
+    Params:
+        - data : 2D array of samples
+        - labels : 1D array of labels
+        - n : number of triplets to generate per class
+
+    Returns a tuple of 3 datasets: (anchor, positive, negative), each with shape (n, 64)
+    """
+
+    anchor_ind = np.array([])
+    positive_ind = np.array([])
+    negative_ind = np.array([])
+    for c in np.unique(labels):
+        c_ind = np.where(labels == c)[0]
+        c_ind = np.random.choice(c_ind, n * 2, replace=False)
+        nc_ind = np.where(labels != c)[0]
+        nc_ind = np.random.choice(nc_ind, n, replace=False)
+        anchor_ind = np.append(anchor_ind, c_ind[0:n])
+        positive_ind = np.append(positive_ind, c_ind[n:])
+        negative_ind = np.append(negative_ind, nc_ind)
+    anchor_dataset = data[anchor_ind.astype(int)]
+    positive_dataset = data[positive_ind.astype(int)]
+    negative_dataset = data[negative_ind.astype(int)]
+    return anchor_dataset, positive_dataset, negative_dataset
+
+
 def cosine_similarity(
     embeddings: np.ndarray, class_embeddings: np.ndarray, closest_class=True
 ):
     """
-    Cosine similarity between two embeddings
+    Cosine similarity between two embeddings.
 
     embeddings has shape (batch_size, embedding_size)
     class_embeddings has shape = (n_class, embedding_size)
@@ -320,6 +349,8 @@ def cosine_similarity(
 
 
 if __name__ == "__main__":
+
+    """
     data_array = ed.load_emager_data(
         utils.DATASETS_ROOT + "EMAGER/", "000", "002", differential=False
     )
@@ -334,3 +365,13 @@ if __name__ == "__main__":
     print(closest_class, closest_class.shape)
     class_similarity = cosine_similarity(emb, class_emb, closest_class=False)
     print(class_similarity, class_similarity.shape)
+    """
+
+    train_emg, test_emg = ed.get_intrasession_loocv_datasets(
+        "/Users/gabrielgagne/Documents/Datasets/EMAGER/", 0, 1, 9
+    )
+    print(train_emg.shape, test_emg.shape)
+    emg, labels = extract_labels(test_emg)
+    print(emg.shape, labels.shape)
+    anchor, pos, neg = generate_triplets(emg, labels, 1000)
+    print(anchor.shape, pos.shape, neg.shape)
