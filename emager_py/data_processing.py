@@ -286,6 +286,39 @@ def shuffle_dataset(data: np.ndarray, labels: np.ndarray, block_size: int):
     return data, labels
 
 
+def cosine_similarity(
+    embeddings: np.ndarray, class_embeddings: np.ndarray, closest_class=True
+):
+    """
+    Cosine similarity between two embeddings
+
+    embeddings has shape (batch_size, embedding_size)
+    class_embeddings has shape = (n_class, embedding_size)
+
+    If closest_class is True, returns a matrix of shape (batch_size,) where each element is the index of the closest class for each embedding in the batch.
+
+    Returns a matrix of shape (batch_size, n_class) where each row is the cosine similarity of the corresponding embedding with each class embedding
+
+    ## Example
+
+    >>> emb = np.random.rand(10, 64)
+    >>> class_emb = np.random.rand(6, 64)
+    >>> closest_class = cosine_similarity(emb, class_emb, closest_class=True)
+    >>> print(closest_class, closest_class.shape)
+    >>> class_similarity = cosine_similarity(emb, class_emb, closest_class=False)
+    >>> print(class_similarity, class_similarity.shape)
+    """
+    nemb = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
+    nembc = class_embeddings / np.linalg.norm(class_embeddings, axis=1, keepdims=True)
+
+    cos_sim = np.matmul(nembc, nemb.T)
+
+    if closest_class:
+        return np.argmax(cos_sim, axis=0)
+    else:
+        return cos_sim.T
+
+
 if __name__ == "__main__":
     data_array = ed.load_emager_data(
         utils.DATASETS_ROOT + "EMAGER/", "000", "002", differential=False
@@ -294,3 +327,10 @@ if __name__ == "__main__":
     data = prepare_shuffled_datasets(
         data_array, split=0.8, absda="train", transform=etrans.default_processing
     )
+
+    emb = np.random.rand(10, 64)
+    class_emb = np.random.rand(6, 64)
+    closest_class = cosine_similarity(emb, class_emb, closest_class=True)
+    print(closest_class, closest_class.shape)
+    class_similarity = cosine_similarity(emb, class_emb, closest_class=False)
+    print(class_similarity, class_similarity.shape)

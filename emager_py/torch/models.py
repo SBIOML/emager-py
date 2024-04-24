@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import lightning as L
+from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 
 import emager_py.torch.utils as etu
 import emager_py.torch.losses as etl
@@ -218,6 +219,23 @@ class EmagerSCNN(L.LightningModule):
         acc = (preds.argmax(dim=0) == y_true).sum().item() / len(y_true)
         self.log("val_acc", acc)
 
+    def test_step(self, batch, batch_idx):
+        x, y_true = batch
+        # embeddings has shape (batchsize, embedding_size)
+        embeddings = self(x)
+
+        # class_embeddings has shape = (n_class, batchsize)
+        class_embeddings = torch.zeros((6, embeddings.shape[1])).to(self.device)
+        for i in range(len(class_embeddings)):
+            class_idx = torch.where(y_true == i)[0]
+            s = torch.sum(embeddings[class_idx], dim=0)
+            class_embeddings[i] = s / len(s)
+
+        embeddings = torch.transpose(embeddings, 0, 1) / torch.norm(embeddings, dim=1)
+        preds = torch.matmul(class_embeddings, embeddings)
+        acc = (preds.argmax(dim=0) == y_true).sum().item() / len(y_true)
+        self.log("test_acc", acc)
+
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=1e-3)
         return optimizer
@@ -239,5 +257,7 @@ if __name__ == "__main__":
     # model = EmagerSCNN((4, 16), 2)
     # 561k w/o quant, 545K with quant
     model = EmagerCNN((4, 16), 6, 2)
-    trainer = L.Trainer(max_epochs=5)
+    trainer = L.Trainer(
+        max_epochs=10, callbacks=[EarlyStopping(monitor="val_loss", mode="min")]
+    )
     trainer.fit(model, train, val)

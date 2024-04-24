@@ -345,6 +345,24 @@ def get_intrasession_loocv_datasets(
     return data, lo_data
 
 
+def get_triplets(X, y, n):
+    anchor_ind = np.array([])
+    positive_ind = np.array([])
+    negative_ind = np.array([])
+    for c in np.unique(y):
+        c_ind = np.where(y == c)[0]
+        c_ind = np.random.choice(c_ind, n * 2, replace=False)
+        nc_ind = np.where(y != c)[0]
+        nc_ind = np.random.choice(nc_ind, n, replace=False)
+        anchor_ind = np.append(anchor_ind, c_ind[0:n])
+        positive_ind = np.append(positive_ind, c_ind[n:])
+        negative_ind = np.append(negative_ind, nc_ind)
+    anchor_dataset = X[anchor_ind.astype(int)]
+    positive_dataset = X[positive_ind.astype(int)]
+    negative_dataset = X[negative_ind.astype(int)]
+    return anchor_dataset, positive_dataset, negative_dataset
+
+
 if __name__ == "__main__":
     from emager_py import utils
     from emager_py import transforms

@@ -10,14 +10,12 @@ class MajorityVote(deque):
         :param max_len: int, the maximum length of the queue
 
         Example:
-        ```python
-        import random as rd
-        q = MajorityVote(10)
-        for _ in range(100):
-            r = rd.randint(0, 6)
-            q.append(r)
-            vote = q.vote() # Get the majority vote
-        ```
+        >>> import random as rd
+        >>> q = MajorityVote(10)
+        >>> for _ in range(100):
+        >>>    r = rd.randint(0, 6)
+        >>>    q.append(r)
+        >>>    vote = q.vote() # Get the majority vote
         """
         super().__init__(maxlen=max_len)
 
