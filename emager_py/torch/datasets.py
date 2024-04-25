@@ -154,6 +154,10 @@ def get_triplet_dataloaders(
         test_data = transform(test_data)
     test_data, test_labels = dp.extract_labels(test_data)
 
+    train_data = train_data.astype(np.float32)
+    val_data = val_data.astype(np.float32)
+    test_data = test_data.astype(np.float32)
+
     train_triplets = dp.generate_triplets(train_data, train_labels, n_triplets)
     val_triplets = dp.generate_triplets(val_data, val_labels, n_triplets // 5)
     test_triplets = dp.generate_triplets(test_data, test_labels, n_triplets)
