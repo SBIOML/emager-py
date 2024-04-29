@@ -129,7 +129,7 @@ def get_redis_dataloaders(
 def get_triplet_dataloaders(
     dataset_path,
     subject,
-    test_session,
+    train_session,
     val_rep,
     absda="train",
     n_triplets=6000,
@@ -137,8 +137,11 @@ def get_triplet_dataloaders(
     train_batch=64,
     val_batch=256,
 ):
-    test_session = int(test_session)
-    train_session = 1 if test_session == 2 else 2
+    """
+    Get triplet dataloaders for training and validation, and a regular dataloader for testing.
+    """
+    train_session = int(train_session)
+    test_session = 1 if train_session == 2 else 2
 
     # Make train and validation data
     train_data, val_data = ed.get_intrasession_loocv_datasets(
@@ -159,15 +162,20 @@ def get_triplet_dataloaders(
     test_data = test_data.astype(np.float32)
 
     train_triplets = dp.generate_triplets(train_data, train_labels, n_triplets)
-    val_triplets = dp.generate_triplets(val_data, val_labels, n_triplets // 5)
-    test_triplets = dp.generate_triplets(test_data, test_labels, n_triplets)
+    val_triplets = dp.generate_triplets(val_data, val_labels, n_triplets // 10)
 
     train_dl = DataLoader(
         TripletEmager(train_triplets), batch_size=train_batch, shuffle=True
     )
     val_dl = DataLoader(TripletEmager(val_triplets), batch_size=val_batch, shuffle=True)
-    test_dl = DataLoader(
-        TripletEmager(test_triplets), batch_size=val_batch, shuffle=False
+    _, test_dl = _get_generic_dataloaders(
+        np.ndarray((0, 0)),
+        np.ndarray((0, 0)),
+        test_data,
+        test_labels,
+        train_batch,
+        val_batch,
+        "none",
     )
 
     return train_dl, val_dl, test_dl

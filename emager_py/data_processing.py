@@ -301,6 +301,10 @@ def generate_triplets(data: np.ndarray, labels: np.ndarray, n: int):
     anchor_ind = np.array([])
     positive_ind = np.array([])
     negative_ind = np.array([])
+
+    unique_len = len(labels) // len(np.unique(labels))
+    if 2 * n > unique_len:
+        n = unique_len // 2
     for c in np.unique(labels):
         c_ind = np.where(labels == c)[0]
         c_ind = np.random.choice(c_ind, n * 2, replace=False)
@@ -317,7 +321,7 @@ def generate_triplets(data: np.ndarray, labels: np.ndarray, n: int):
 
 def cosine_similarity(
     embeddings: np.ndarray, class_embeddings: np.ndarray, closest_class=True
-):
+) -> np.ndarray:
     """
     Cosine similarity between two embeddings.
 
@@ -340,17 +344,26 @@ def cosine_similarity(
     nemb = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
     nembc = class_embeddings / np.linalg.norm(class_embeddings, axis=1, keepdims=True)
 
-    cos_sim = np.matmul(nembc, nemb.T)
+    cos_sim = np.matmul(nemb, nembc.T)
 
     if closest_class:
-        return np.argmax(cos_sim, axis=0)
-    else:
-        return cos_sim.T
+        return np.argmax(cos_sim, axis=1)
+
+    return cos_sim
+
+
+def get_typical_embeddings(embeddings: np.ndarray, labels: np.ndarray, n_classes: int):
+    ret = np.zeros((n_classes, *embeddings.shape[1:]))
+    for unique_y in np.unique(labels):
+        t = np.where(labels == unique_y)[0]
+        batch_sum = np.sum(embeddings[t], axis=0)
+        ret[unique_y] += batch_sum
+    return ret
 
 
 if __name__ == "__main__":
 
-    """
+    utils.DATASETS_ROOT = "/Users/gabrielgagne/Documents/Datasets/"
     data_array = ed.load_emager_data(
         utils.DATASETS_ROOT + "EMAGER/", "000", "002", differential=False
     )
@@ -365,7 +378,6 @@ if __name__ == "__main__":
     print(closest_class, closest_class.shape)
     class_similarity = cosine_similarity(emb, class_emb, closest_class=False)
     print(class_similarity, class_similarity.shape)
-    """
 
     train_emg, test_emg = ed.get_intrasession_loocv_datasets(
         "/Users/gabrielgagne/Documents/Datasets/EMAGER/", 0, 1, 9

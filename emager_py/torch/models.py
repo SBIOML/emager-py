@@ -8,7 +8,7 @@ from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 
 import brevitas.nn as qnn
 
-from emager_py.data_processing import cosine_similarity
+from emager_py import data_processing as dp
 
 
 class EmagerCNN(L.LightningModule):
@@ -155,14 +155,12 @@ class EmagerSCNN(L.LightningModule):
         self.loss = nn.TripletMarginLoss(margin=0.2)
         self.input_shape = input_shape
 
-        output_sizes = [32, 32, 32, 256]
+        output_sizes = [32, 32, 32]
 
         self.bn1 = nn.BatchNorm2d(output_sizes[0])
         self.bn2 = nn.BatchNorm2d(output_sizes[1])
         self.bn3 = nn.BatchNorm2d(output_sizes[2])
         self.flat = nn.Flatten()
-        self.dropout4 = nn.Dropout(0.5)
-        self.bn4 = nn.BatchNorm1d(output_sizes[3])
 
         if quantization == -1:
             self.inp = nn.Identity()
@@ -172,11 +170,6 @@ class EmagerSCNN(L.LightningModule):
             self.relu2 = nn.ReLU()
             self.conv3 = nn.Conv2d(output_sizes[1], output_sizes[2], 5, padding=2)
             self.relu3 = nn.ReLU()
-            self.fc4 = nn.Linear(
-                output_sizes[2] * np.prod(self.input_shape),
-                output_sizes[3],
-            )
-            self.relu4 = nn.ReLU()
         else:
             self.inp = qnn.QuantIdentity()
             self.conv1 = qnn.QuantConv2d(
@@ -206,13 +199,6 @@ class EmagerSCNN(L.LightningModule):
                 weight_bit_width=quantization,
             )
             self.relu3 = qnn.QuantReLU(bit_width=quantization)
-            self.fc4 = qnn.QuantLinear(
-                output_sizes[2] * np.prod(self.input_shape),
-                output_sizes[3],
-                bias=True,
-                weight_bit_width=quantization,
-            )
-            self.relu4 = qnn.QuantReLU(bit_width=quantization)
 
     def forward(self, x):
         out = torch.reshape(x, (-1, 1, *self.input_shape))
@@ -221,7 +207,6 @@ class EmagerSCNN(L.LightningModule):
         out = self.bn2(self.relu2(self.conv2(out)))
         out = self.bn3(self.relu3(self.conv3(out)))
         out = self.flat(out)
-        out = self.bn4(self.relu4(self.dropout4(self.fc4(out))))
         return out
 
     def training_step(self, batch, batch_idx):
@@ -241,14 +226,30 @@ class EmagerSCNN(L.LightningModule):
         return loss
 
     def test_step(self, batch, batch_idx):
-        # TODO
-        x1, x2, x3 = batch
-        # anchor, positive, negative = self(x1), self(x2), self(x3)
-        # y = cosine_similarity()
-        loss = 0.5
-        # self.log("test_acc", acc)
-        self.log("test_loss", loss)
-        return loss
+        x, y_true = batch
+        embeddings = self(x).cpu().detach().numpy()
+        y_true = y_true.cpu().detach().numpy()
+        y = dp.cosine_similarity(embeddings, self.embeddings, False)
+        amax = np.argmax(y, axis=1)
+        t = amax == y_true
+        acc = t.sum().item() / len(y_true)
+        # print(f"Accuracy = {acc * 100} %")
+        self.log("test_acc", acc)
+        return acc
+
+    def calibrate_class_embeddings(self, dataloader, n_classes):
+        with torch.no_grad():
+            self.embeddings = None
+            for i, (x, y) in enumerate(dataloader):
+                x = x.to(self.device)
+                y = y.cpu().detach().numpy()
+                batch_embeddings = self(x).cpu().detach().numpy()
+                if i == 0:
+                    self.embeddings = np.zeros((n_classes, batch_embeddings.shape[1]))
+                tmp = dp.get_typical_embeddings(batch_embeddings, y, n_classes)
+                self.embeddings += tmp
+
+            self.embeddings /= np.linalg.norm(self.embeddings, axis=1, keepdims=True)
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=1e-3)
@@ -273,21 +274,40 @@ if __name__ == "__main__":
             9,
             transform=etrans.default_processing,
         )
-        val = None
-        model = EmagerCNN((4, 16), 6, quantization=2)
+        val = test
+        model = EmagerCNN((4, 16), 6, -1)
     else:
+        # using FC at the end kills performance??
         train, val, test = etd.get_triplet_dataloaders(
             eutils.DATASETS_ROOT + "EMAGER/",
             0,
-            2,
+            1,
             9,
+            transform=etrans.default_processing,
+            absda="train",
+            val_batch=100,
         )
-        model = EmagerSCNN((4, 16), 2)
-
+        """model = EmagerSCNN.load_from_checkpoint(
+            "lightning_logs/version_18/checkpoints/epoch=14-step=1275.ckpt",
+            input_shape=(4, 16),
+            quantization=-1,
+        )"""
+        model = EmagerSCNN((4, 16), -1)
     trainer = L.Trainer(
         max_epochs=5,
-        accelerator="cpu",
-        # callbacks=[EarlyStopping(monitor="val_loss", mode="min")],
+        # accelerator="cpu",
+        callbacks=[EarlyStopping(monitor="val_loss", mode="min")],
     )
     trainer.fit(model, train, val)
+    if isinstance(model, EmagerSCNN):
+        """
+        train, test = etd.get_loocv_dataloaders(
+            eutils.DATASETS_ROOT + "EMAGER/",
+            0,
+            1,
+            8,
+            transform=etrans.default_processing,
+            test_batch=100,
+        )"""
+        model.calibrate_class_embeddings(test, 6)
     trainer.test(model, test)
