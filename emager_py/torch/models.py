@@ -6,6 +6,7 @@ import torch.nn.functional as F
 import lightning as L
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 
+from sklearn.metrics import accuracy_score
 import brevitas.nn as qnn
 
 from emager_py import data_processing as dp
@@ -130,11 +131,15 @@ class EmagerCNN(L.LightningModule):
         x, y_true = batch
         y = self(x)
         loss = self.loss(y, y_true)
-        acc = (y.argmax(dim=1) == y_true).sum().item() / len(y_true)
-        print(acc)
+
+        y = y.cpu().detach().numpy()
+        y_true = y_true.cpu().detach().numpy()
+
+        acc = accuracy_score(y_true, y, normalize=True)
+
         self.log("test_acc", acc)
         self.log("test_loss", loss)
-        return loss
+        return acc, loss
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=1e-3)
@@ -152,6 +157,10 @@ class EmagerSCNN(L.LightningModule):
         """
         super().__init__()
 
+        # Test attributes
+        self.test_preds = np.ndarray((0,), dtype=np.uint8)
+
+        # Model definition
         self.loss = nn.TripletMarginLoss(margin=0.2)
         self.input_shape = input_shape
 
@@ -226,40 +235,34 @@ class EmagerSCNN(L.LightningModule):
         return loss
 
     def test_step(self, batch, batch_idx):
+        if batch_idx == 0:
+            self.test_preds = np.ndarray((0,), dtype=np.uint8)
+
         x, y_true = batch
         embeddings = self(x).cpu().detach().numpy()
+
+        y = dp.cosine_similarity(embeddings, self.embeddings, True)
         y_true = y_true.cpu().detach().numpy()
-        y = dp.cosine_similarity(embeddings, self.embeddings, False)
-        amax = np.argmax(y, axis=1)
-        t = amax == y_true
-        acc = t.sum().item() / len(y_true)
-        # print(f"Accuracy = {acc * 100} %")
+        acc = accuracy_score(y_true, y, normalize=True)
+
         self.log("test_acc", acc)
+        self.test_preds = np.concatenate((self.test_preds, y))
         return acc
-
-    def calibrate_class_embeddings(self, dataloader, n_classes):
-        with torch.no_grad():
-            self.embeddings = None
-            for i, (x, y) in enumerate(dataloader):
-                x = x.to(self.device)
-                y = y.cpu().detach().numpy()
-                batch_embeddings = self(x).cpu().detach().numpy()
-                if i == 0:
-                    self.embeddings = np.zeros((n_classes, batch_embeddings.shape[1]))
-                tmp = dp.get_typical_embeddings(batch_embeddings, y, n_classes)
-                self.embeddings += tmp
-
-            self.embeddings /= np.linalg.norm(self.embeddings, axis=1, keepdims=True)
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=1e-3)
         return optimizer
+
+    def set_target_embeddings(self, embeddings):
+        self.embeddings = embeddings
 
 
 if __name__ == "__main__":
     import emager_py.torch.datasets as etd
     import emager_py.utils as eutils
     import emager_py.transforms as etrans
+    import emager_py.torch.utils as etu
+    import emager_py.data_processing as dp
 
     # eutils.set_logging()
 
@@ -288,7 +291,7 @@ if __name__ == "__main__":
             val_batch=100,
         )
         """model = EmagerSCNN.load_from_checkpoint(
-            "lightning_logs/version_18/checkpoints/epoch=14-step=1275.ckpt",
+            "lightning_logs/version_2/checkpoints/epoch=4-step=2110.ckpt",
             input_shape=(4, 16),
             quantization=-1,
         )"""
@@ -298,7 +301,7 @@ if __name__ == "__main__":
         # accelerator="cpu",
         callbacks=[EarlyStopping(monitor="val_loss", mode="min")],
     )
-    trainer.fit(model, train, val)
+    # trainer.fit(model, train, val)
     if isinstance(model, EmagerSCNN):
         """
         train, test = etd.get_loocv_dataloaders(
@@ -309,5 +312,8 @@ if __name__ == "__main__":
             transform=etrans.default_processing,
             test_batch=100,
         )"""
-        model.calibrate_class_embeddings(test, 6)
+        ret = etu.get_all_embeddings(model, test, model.device)
+        cemb = dp.get_n_shot_embeddings(*ret, 6, 10)
+        print(ret[0].shape, ret[1].shape)
+        model.set_target_embeddings(cemb)
     trainer.test(model, test)

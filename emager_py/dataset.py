@@ -41,15 +41,27 @@ _DATASET_TEMPLATE = {
 }
 
 
-def format_subject(subject: int) -> str:
+def format_subject(subject: int | str) -> str:
+    if isinstance(subject, str):
+        subject = int(subject)
     return _DATASET_TEMPLATE["subject"] % str(subject).zfill(3)
 
 
-def format_session(session: int) -> str:
+def format_session(session: int | str) -> str:
+    if isinstance(session, str):
+        session = int(session)
     return _DATASET_TEMPLATE["session"] % str(session).zfill(3)
 
 
 def format_repetition(subject, session, gesture, repetition, arm="right") -> str:
+    if isinstance(subject, str):
+        subject = int(subject)
+    if isinstance(session, str):
+        session = int(session)
+    if isinstance(gesture, str):
+        gesture = int(gesture)
+    if isinstance(repetition, str):
+        repetition = int(repetition)
     if len(arm) == 0:
         template = _DATASET_TEMPLATE["repetition"].rstrip("-")
     else:
@@ -64,7 +76,7 @@ def format_repetition(subject, session, gesture, repetition, arm="right") -> str
     )
 
 
-def get_subjects(path):
+def get_subjects(path) -> list[str]:
     """
     List all subjects in EMaGer dataset.
 
@@ -78,10 +90,12 @@ def get_subjects(path):
         except ValueError:
             return False
 
-    return list(filter(lambda d: filt(d), os.listdir(path)))
+    subjects = list(filter(lambda d: filt(d), os.listdir(path)))
+    subjects.sort()
+    return subjects
 
 
-def get_sessions():
+def get_sessions() -> list[str]:
     """
     Get the sessions from EMaGer dataset.
 
@@ -90,11 +104,11 @@ def get_sessions():
     return ["001", "002"]
 
 
-def get_repetitions():
+def get_repetitions() -> list[str]:
     """
-    Get the number of repetitions for every gesture.
+    Get the available repetitions for every gesture.
 
-    TODO: actually read from disks what repetitions exist.
+    TODO: actually read from disk what repetitions exist.
     """
     return [f"{i:03d}" for i in range(10)]
 
@@ -325,21 +339,20 @@ def get_intrasession_loocv_datasets(
     Returns a tuple of datasets: (train, test), each as GRNC arrays.
     """
 
-    if isinstance(test_rep, int):
-        test_rep = [test_rep]
+    if not isinstance(test_rep, list):
+        test_rep = [int(test_rep)]
 
-    assert os.path.exists(dataset_path), f"Dataset path {dataset_path} not found."
-
+    # First, load the entire dataset
     data = load_emager_data(dataset_path, subject, session)
-    lo_data = np.ndarray((data.shape[0], 0, *data.shape[2:]), dtype=data.dtype)
 
+    # Then, extract the LOOCV datasets
+    lo_data = np.ndarray((data.shape[0], 0, *data.shape[2:]), dtype=data.dtype)
     for lo in test_rep:
-        assert f"{lo:03d}" in get_subjects(
-            dataset_path
-        ), f"Subject {lo} not found in dataset."
+        # Select the left-out data and append it to lo_data
         new_data = np.expand_dims(data[:, lo, :, :], axis=1)
         lo_data = np.concatenate((lo_data, new_data), axis=1)
 
+    # Delete extracted data from the original dataset
     for lo in test_rep:
         data = np.delete(data, lo, axis=1)
 
@@ -354,6 +367,7 @@ if __name__ == "__main__":
     from emager_py import transforms
 
     utils.set_logging()
+    print(get_subjects("/Users/gabrielgagne/Documents/Datasets/EMAGER/"))
     """
     processed_path = load_process_save_dataset(
         "/home/gabrielgagne/Documents/Datasets/EMAGER/",

@@ -352,13 +352,59 @@ def cosine_similarity(
     return cos_sim
 
 
-def get_typical_embeddings(embeddings: np.ndarray, labels: np.ndarray, n_classes: int):
+def get_mean_embeddings(embeddings: np.ndarray, labels: np.ndarray, n_classes: int):
+    """
+    From a batch of embeddings and corresponding labels, generate mean embeddings for each class.
+
+    Params:
+        - embeddings : 2D array of embeddings : (N, W) where W is the embedding width
+        - labels : 1D array of labels : (N,)
+        - n_classes : number of target classes
+
+    Returns a 2D array of shape (n_classes, W) where each row is the mean embedding for each class.
+    """
     ret = np.zeros((n_classes, *embeddings.shape[1:]))
     for unique_y in np.unique(labels):
         t = np.where(labels == unique_y)[0]
         batch_sum = np.sum(embeddings[t], axis=0)
         ret[unique_y] += batch_sum
     return ret
+
+
+def get_n_shot_embeddings(
+    embeddings: np.ndarray, labels: np.ndarray, n_classes: int, n_shots: int
+):
+    """
+    From raw embeddings and corresponding labels, generate n-shot embeddings for each class.
+
+    Under the hood, this function samples randomly `n_shots` from each class and calls `get_mean_embeddings` to generate the mean embeddings for each class.
+
+    Params:
+        - embeddings : 2D array of embeddings : (N, W) where W is the embedding width
+        - labels : 1D array of labels : (N,)
+        - n_classes : number of target classes
+        - n_shots : number of shots per class
+
+    Returns a 2D array of shape (n_classes, W) where each row is the n-shot embedding for each class.
+    Any subsequent embedding can then be classified against this array, for example with `emager_py.data_processing.cosine_similarity`.
+    """
+    assert len(embeddings) == len(labels)
+    labels = labels.astype(np.uint8)
+
+    if n_shots == -1:
+        return get_mean_embeddings(embeddings, labels, n_classes)
+
+    to_sample = np.zeros((0,), dtype=np.uint8)
+    for k in np.unique(labels):
+        num_k = np.sum([labels == k])
+        to_sample_k = np.random.choice(
+            np.where(labels == k)[0],
+            min(n_shots, num_k),
+            replace=False,
+        )
+        to_sample = np.append(to_sample, to_sample_k)
+
+    return get_mean_embeddings(embeddings[to_sample], labels[to_sample], n_classes)
 
 
 if __name__ == "__main__":

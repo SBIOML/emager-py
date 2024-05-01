@@ -6,10 +6,29 @@ Source: https://github.com/adambielski/siamese-triplet/tree/master
 
 import numpy as np
 import torch
+from torch import nn
+from torch.utils.data import DataLoader
 from itertools import combinations
 
 
 _eps = 1e-8  # an arbitrary small value to be used for numerical stability tricks
+
+
+def get_all_embeddings(model: nn.Module, dataloader: DataLoader, device):
+    """
+    Pass all the dataloader through the model and return the embeddings and the labels
+    """
+    model.eval()
+    embeddings = None
+    targets = np.zeros((0,), dtype=np.uint8)
+    with torch.no_grad():
+        for i, (input, target) in enumerate(dataloader):
+            output = model(input.to(device))
+            if i == 0:
+                embeddings = np.zeros((0, output.shape[1]))
+            embeddings = np.append(embeddings, output.detach().cpu().numpy(), axis=0)
+            targets = np.append(targets, target.detach().cpu().numpy())
+    return embeddings, targets
 
 
 class TripletSelector:

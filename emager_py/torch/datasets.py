@@ -30,7 +30,13 @@ class TripletEmager(Dataset):
 
 
 def _get_generic_dataloaders(
-    train_data, train_labels, test_data, test_labels, train_batch, test_batch, shuffle
+    train_data: np.ndarray,
+    train_labels: np.ndarray,
+    test_data: np.ndarray,
+    test_labels: np.ndarray,
+    train_batch: int,
+    test_batch: int,
+    shuffle: str,
 ):
     """
     Create dataloaders from numpy arrays.
@@ -46,13 +52,13 @@ def _get_generic_dataloaders(
 
     log.info(f"Train set length: {len(train_set)}, Test set length: {len(test_set)}")
 
-    shuf_train, shuf_test = True, True
+    shuf_train, shuf_test = False, False
     if shuffle == "train":
-        shuf_test = False
+        shuf_train = True
     elif shuffle == "test":
-        shuf_train = False
-    elif shuffle == "none":
-        shuf_train, shuf_test = False, False
+        shuf_test = True
+    elif shuffle == "both":
+        shuf_train, shuf_test = True, True
 
     return (
         DataLoader(train_set, train_batch, shuffle=shuf_train),
@@ -66,7 +72,7 @@ def get_loocv_dataloaders(
     session,
     left_out_rep,
     absda="train",
-    shuffle="both",
+    shuffle="train",
     transform=None,
     train_batch=64,
     test_batch=256,
@@ -96,7 +102,7 @@ def get_loocv_dataloaders(
 def get_redis_dataloaders(
     redis_host,
     absda="train",
-    shuffle="both",
+    shuffle="train",
     split=0.8,
     transform=None,
     train_batch=64,
@@ -167,7 +173,9 @@ def get_triplet_dataloaders(
     train_dl = DataLoader(
         TripletEmager(train_triplets), batch_size=train_batch, shuffle=True
     )
-    val_dl = DataLoader(TripletEmager(val_triplets), batch_size=val_batch, shuffle=True)
+    val_dl = DataLoader(
+        TripletEmager(val_triplets), batch_size=val_batch, shuffle=False
+    )
     _, test_dl = _get_generic_dataloaders(
         np.ndarray((0, 0)),
         np.ndarray((0, 0)),
