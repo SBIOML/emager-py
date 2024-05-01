@@ -20,7 +20,7 @@ class EmagerCNN(L.LightningModule):
         Parameters:
             - input_shape: shape of input data
             - num_classes: number of classes
-            - quantization: bit-width of weights and activations. -1 for floating point
+            - quantization: bit-width of weights and activations. >=32 or <0 for no quantization
         """
         super().__init__()
 
@@ -37,7 +37,7 @@ class EmagerCNN(L.LightningModule):
         self.dropout4 = nn.Dropout(0.5)
         self.bn4 = nn.BatchNorm1d(hidden_layer_sizes[3])
 
-        if quantization == -1:
+        if quantization < 0 or quantization >= 32:
             self.inp = nn.Identity()
             self.conv1 = nn.Conv2d(1, hidden_layer_sizes[0], 3, padding=1)
             self.relu1 = nn.ReLU()
@@ -153,7 +153,7 @@ class EmagerSCNN(L.LightningModule):
 
         Parameters:
             - input_shape: shape of input data
-            - quantization: bit-width of weights and activations. -1 for floating point
+            - quantization: bit-width of weights and activations. >=32 or <0 for no quantization
         """
         super().__init__()
 
@@ -171,7 +171,7 @@ class EmagerSCNN(L.LightningModule):
         self.bn3 = nn.BatchNorm2d(output_sizes[2])
         self.flat = nn.Flatten()
 
-        if quantization == -1:
+        if quantization < 0 or quantization >= 32:
             self.inp = nn.Identity()
             self.conv1 = nn.Conv2d(1, output_sizes[0], 3, padding=1)
             self.relu1 = nn.ReLU()
