@@ -143,7 +143,7 @@ def insert_custom_ip(ip_tcl_script: str, **kwargs):
 
 def default_finn_flow_export_bd() -> list:
     """
-    Run the default FINN build flow with block design retrieval to FINN output folder.
+    Run the default FINN build flow and export the default FINN block design to the output directory after it is generated.
     """
     steps = build_cfg.default_build_dataflow_steps[:-2] + [
         step_copy_finn_bd,
@@ -161,6 +161,18 @@ def default_finn_flow_custom_ip() -> list:
         step_insert_ip_into_bd,
         *build_cfg.default_build_dataflow_steps[-3:],
         step_copy_finn_bd,
+        step_deploy_to_pynq,
+    ]
+    log.info(f"FINN Build Steps: {steps}")
+    return steps
+
+
+def finn_flow_only_deploy() -> list:
+    """
+    Only deploy the a pre-built deployment package to the PYNQ board.
+    """
+    steps = [
+        step_insert_properties,
         step_deploy_to_pynq,
     ]
     log.info(f"FINN Build Steps: {steps}")

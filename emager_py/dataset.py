@@ -35,6 +35,7 @@ import os
 
 import emager_py.data_processing as dp
 import emager_py.utils as eutils
+import emager_py.transforms as etrans
 
 _DATASET_TEMPLATE = {
     "subject": "%s/",
@@ -65,7 +66,7 @@ def format_repetition(subject, session, gesture, repetition, arm="right") -> str
     if isinstance(repetition, str):
         repetition = int(repetition)
     if len(arm) == 0:
-        template = _DATASET_TEMPLATE["repetition"].rstrip("-")
+        template = "".join(_DATASET_TEMPLATE["repetition"].rsplit("-", 1))
     else:
         template = _DATASET_TEMPLATE["repetition"]
 
@@ -130,9 +131,9 @@ def load_emager_data(dataset_path, subject, session, differential=False, floor_t
     base_path = dataset_path + format_subject(subject) + format_session(session)
     log.info(base_path)
 
-    files = os.listdir(base_path)
-    gesture_toks = [int(f.split("-")[2]) for f in files]
-    rep_toks = [int(f.split("-")[3]) for f in files]
+    files = [f.split("-") for f in os.listdir(base_path)]
+    gesture_toks = [int(f[2]) for f in files]
+    rep_toks = [int(f[3].split(".")[0]) for f in files]
 
     nb_gesture = max(gesture_toks) + 1
     nb_repetition = max(rep_toks) + 1
@@ -244,7 +245,9 @@ def generate_raw_validation_data(
     return raw_data, labels
 
 
-def process_save_dataset(data, out_path: str, transform: callable) -> str:
+def process_save_dataset(
+    data, out_path: str, transform: callable, subject, session
+) -> str:
     """
     Process and save a dataset as numpy array to disk.
 
@@ -264,7 +267,7 @@ def process_save_dataset(data, out_path: str, transform: callable) -> str:
             "Data shape must be (n_gestures, n_reps, n_samples, n_channels)"
         )
 
-    out_path = out_path + "/" + transform.__name__ + "/"
+    out_path = out_path + format_subject(subject) + format_session(session)
     if not os.path.exists(out_path):
         os.makedirs(out_path)
 
@@ -275,7 +278,7 @@ def process_save_dataset(data, out_path: str, transform: callable) -> str:
         for rep in range(nb_rep):
             processed_data = transform(data[gesture, rep, :, :])
             np.savetxt(
-                out_path + format_repetition("", "", gesture, rep, ""),
+                out_path + format_repetition(subject, session, gesture, rep, ""),
                 processed_data,
                 delimiter=",",
             )
@@ -294,13 +297,13 @@ def load_process_save_dataset(
 
     Returns the new dataset root path.
     """
-    out_path = out_path + "/" + transform.__name__ + "/"
-    if not os.path.exists(out_path):
-        os.makedirs(out_path)
 
-    if not subjects:
+    if isinstance(transform, str):
+        transform = etrans.transforms_lut[transform]
+
+    if subjects is None:
         subjects = get_subjects(dataset_path)
-    elif isinstance(subjects, int):
+    elif not isinstance(subjects, list):
         subjects = [subjects]
 
     if not sessions:
@@ -311,7 +314,12 @@ def load_process_save_dataset(
     for subject in subjects:
         for session in sessions:
             session_data = load_emager_data(dataset_path, subject, session)
-            process_save_dataset(session_data, out_path, transform)
+            ret = process_save_dataset(
+                session_data, out_path, transform, subject, session
+            )
+            log.info(
+                f"Saved processed dataset for subject {subject} session {session} at {ret}"
+            )
     return out_path
 
 
