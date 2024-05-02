@@ -270,7 +270,7 @@ if __name__ == "__main__":
     eutils.DATASETS_ROOT = "/Users/gabrielgagne/Documents/Datasets/"
 
     if USE_CNN:
-        train, test = etd.get_loocv_dataloaders(
+        train, test = etd.get_lnocv_dataloaders(
             eutils.DATASETS_ROOT + "EMAGER/",
             "000",
             "001",

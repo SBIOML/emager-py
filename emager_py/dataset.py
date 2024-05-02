@@ -10,13 +10,15 @@ The dataset is structured in the following way:
 Where:
 
 - `<subject_id>` is the subject ID from 000 to 012
-- `<session>` is the session number, usually either `session_0` or `session_1`
+- `<session>` is the session number, usually either `session_0` or `session_1`. There are some special session which are not yet supported.
 - `<filename>.csv`, ie `002-001-003-009-right.csv`:
   - `002` is the subject ID
   - `001` is the session number
   - `003` is the gesture id
   - `009` is the segment number for the given gesture
   - `right` recording done on the right forearm
+
+NOTE: subject, gesture and repetition numbers are 0-indexed. Session is 1-indexed.
 
 This module provides routines to load, process and save EMaGer dataset-compatible data. 
 
@@ -79,8 +81,6 @@ def format_repetition(subject, session, gesture, repetition, arm="right") -> str
 def get_subjects(path) -> list[str]:
     """
     List all subjects in EMaGer dataset.
-
-    TODO: Add rotation experiments
     """
 
     def filt(d):
@@ -328,33 +328,45 @@ def get_intersession_cv_datasets(dataset_path: str, subject):
     return tuple([load_emager_data(dataset_path, subject, s) for s in sessions])
 
 
-def get_intrasession_loocv_datasets(
-    dataset_path: str, subject, session, test_rep: int | list[int]
+def get_lnocv_datasets(
+    dataset_path: str,
+    subject: str | int,
+    session: int | list[int],
+    test_rep: int | list[int],
 ):
     """
-    Get the Leave-One-Out Cross Validation datasets from EMaGer dataset.
+    Get the Leave-N-Out Cross Validation (LNOCV) datasets from EMaGer dataset.
 
     This can easily be used as a train/test dataset.
+
+    Params:
+        - `dataset_path`: path to EMaGer dataset root
+        - `subject`: subject ID
+        - `session`: session number(s).
+        - `test_rep`: repetition(s) to leave out as testing/validation set
 
     Returns a tuple of datasets: (train, test), each as GRNC arrays.
     """
 
     if not isinstance(test_rep, list):
-        test_rep = [int(test_rep)]
+        test_rep = [test_rep]
 
     # First, load the entire dataset
-    data = load_emager_data(dataset_path, subject, session)
+    if not isinstance(session, list):
+        session = [session]
 
-    # Then, extract the LOOCV datasets
-    lo_data = np.ndarray((data.shape[0], 0, *data.shape[2:]), dtype=data.dtype)
-    for lo in test_rep:
-        # Select the left-out data and append it to lo_data
-        new_data = np.expand_dims(data[:, lo, :, :], axis=1)
-        lo_data = np.concatenate((lo_data, new_data), axis=1)
+    # concatenate them as repetitions
+    data = [load_emager_data(dataset_path, subject, ses) for ses in session]
+    test_rep = [
+        int(r) + k * data[0].shape[1] for k in range(len(data)) for r in test_rep
+    ]
+    data = np.concatenate(data, axis=1)
 
-    # Delete extracted data from the original dataset
-    for lo in test_rep:
-        data = np.delete(data, lo, axis=1)
+    # extract the LOOCV datasets
+    lo_data = data[:, test_rep, :, :]
+
+    # delete extracted data from the original dataset
+    data = np.delete(data, test_rep, axis=1)
 
     log.info(
         f"Loaded LOOCV datasets for subject {subject} session {session} with shapes {data.shape}, {lo_data.shape}."
@@ -366,8 +378,10 @@ if __name__ == "__main__":
     from emager_py import utils
     from emager_py import transforms
 
+    utils.DATASETS_ROOT = "/home/gabrielgagne/Documents/Datasets/EMAGER/"
+
     utils.set_logging()
-    print(get_subjects("/Users/gabrielgagne/Documents/Datasets/EMAGER/"))
+    print(get_subjects(utils.DATASETS_ROOT))
     """
     processed_path = load_process_save_dataset(
         "/home/gabrielgagne/Documents/Datasets/EMAGER/",
@@ -386,13 +400,13 @@ if __name__ == "__main__":
         get_repetitions(),
     )
     """
-    d, lo = get_intrasession_loocv_datasets(
-        "/home/gabrielgagne/Documents/Datasets/EMAGER/", 3, 1, [1, 2, 3]
-    )
+    d, lo = get_lnocv_datasets(utils.DATASETS_ROOT, 3, 1, 4)
+    d, lo = get_lnocv_datasets(utils.DATASETS_ROOT, 3, 1, [4, 5])
+    d, lo = get_lnocv_datasets(utils.DATASETS_ROOT, 3, [1, 2], [4, 5])
     print(d.shape, lo.shape)
     """
     d, lo = get_intersession_cv_datasets(
-        "/home/gabrielgagne/Documents/Datasets/EMAGER/", 0
+        utils.DATASETS_ROOT, 0
     )
     print(d.shape, lo.shape)
     """

@@ -223,18 +223,17 @@ def prepare_shuffled_datasets(
     return (train_data, train_labels), (test_data, test_labels)
 
 
-def prepare_loocv_datasets(
-    data: np.ndarray,
-    left_out: np.ndarray,
+def prepare_lnocv_datasets(
+    train_data: np.ndarray,
+    test_data: np.ndarray,
     absda="train",
     transform=None,
 ):
     """
-    Prepare the LOOCV datasets.
+    Prepare the Leave-N-Out Cross Validation datasets.
 
     Parameters:
-        - `data`: "non"-left out data
-        - `left_out`: left out data array
+        - `train_data`, `test_data`: EMaGer-compatible `numpy` arrays
         - `absda` : "train", "test", "both", or "none", which data to apply ABSDA to
         - `transform` : transformation to apply to the data, can be one of `emager_py.transforms` (str) or `callable`
 
@@ -243,25 +242,25 @@ def prepare_loocv_datasets(
     if transform is not None:
         if isinstance(transform, str):
             transform = etrans.transforms_lut[transform]
-        data = transform(data)
-        left_out = transform(left_out)
+        train_data = transform(train_data)
+        test_data = transform(test_data)
 
     data_labels = None
     lo_labels = None
     if absda == "train":
-        data, data_labels = extract_labels_and_roll(data, 2)
-        left_out, lo_labels = extract_labels(left_out)
+        train_data, data_labels = extract_labels_and_roll(train_data, 2)
+        test_data, lo_labels = extract_labels(test_data)
     elif absda == "test":
-        data, data_labels = extract_labels(data)
-        left_out, lo_labels = extract_labels_and_roll(left_out, 2)
+        train_data, data_labels = extract_labels(train_data)
+        test_data, lo_labels = extract_labels_and_roll(test_data, 2)
     elif absda == "both":
-        data, data_labels = extract_labels_and_roll(data, 2)
-        left_out, lo_labels = extract_labels_and_roll(left_out, 2)
+        train_data, data_labels = extract_labels_and_roll(train_data, 2)
+        test_data, lo_labels = extract_labels_and_roll(test_data, 2)
     else:
-        data, data_labels = extract_labels(data)
-        left_out, lo_labels = extract_labels(left_out)
+        train_data, data_labels = extract_labels(train_data)
+        test_data, lo_labels = extract_labels(test_data)
 
-    return (data, data_labels), (left_out, lo_labels)
+    return (train_data, data_labels), (test_data, lo_labels)
 
 
 def shuffle_dataset(data: np.ndarray, labels: np.ndarray, block_size: int):
@@ -425,7 +424,7 @@ if __name__ == "__main__":
     class_similarity = cosine_similarity(emb, class_emb, closest_class=False)
     print(class_similarity, class_similarity.shape)
 
-    train_emg, test_emg = ed.get_intrasession_loocv_datasets(
+    train_emg, test_emg = ed.get_lnocv_datasets(
         "/Users/gabrielgagne/Documents/Datasets/EMAGER/", 0, 1, 9
     )
     print(train_emg.shape, test_emg.shape)

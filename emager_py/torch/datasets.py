@@ -66,11 +66,11 @@ def _get_generic_dataloaders(
     )
 
 
-def get_loocv_dataloaders(
+def get_lnocv_dataloaders(
     dataset_path,
     subject,
-    session,
-    left_out_rep,
+    session: int | list,
+    left_out_rep: int | list,
     absda="train",
     shuffle="train",
     transform=None,
@@ -78,14 +78,17 @@ def get_loocv_dataloaders(
     test_batch=256,
 ):
     """
-    Load LOOCV datasets from disk and return DataLoader instances for training and testing.
+    Load LNOCV datasets from disk and return DataLoader instances for training and testing.
 
     Returns a tuple of (train_dataloader, test_dataloader)
     """
-    data, lo = ed.get_intrasession_loocv_datasets(
-        dataset_path, subject, session, left_out_rep
-    )
-    (train_data, train_labels), (test_data, test_labels) = dp.prepare_loocv_datasets(
+    if not isinstance(session, list):
+        session = [session]
+    if not isinstance(left_out_rep, list):
+        left_out_rep = [left_out_rep]
+
+    data, lo = ed.get_lnocv_datasets(dataset_path, subject, session, left_out_rep)
+    (train_data, train_labels), (test_data, test_labels) = dp.prepare_lnocv_datasets(
         data, lo, absda, transform
     )
     return _get_generic_dataloaders(
@@ -135,8 +138,8 @@ def get_redis_dataloaders(
 def get_triplet_dataloaders(
     dataset_path,
     subject,
-    train_session,
-    val_rep,
+    train_session: int | list,
+    val_rep: int | list,
     absda="train",
     n_triplets=6000,
     transform=None,
@@ -150,10 +153,11 @@ def get_triplet_dataloaders(
     test_session = 1 if train_session == 2 else 2
 
     # Make train and validation data
-    train_data, val_data = ed.get_intrasession_loocv_datasets(
+    train_data, val_data = ed.get_lnocv_datasets(
         dataset_path, subject, train_session, val_rep
     )
-    (train_data, train_labels), (val_data, val_labels) = dp.prepare_loocv_datasets(
+    # Process and split into data and labels each set
+    (train_data, train_labels), (val_data, val_labels) = dp.prepare_lnocv_datasets(
         train_data, val_data, absda, transform
     )
 
@@ -195,12 +199,20 @@ if __name__ == "__main__":
     from emager_py.emager_redis import get_docker_redis_ip
 
     train_dl, val_dl, test_dl = get_triplet_dataloaders(
-        "/Users/gabrielgagne/Documents/Datasets/EMAGER/",
+        "/home/gabrielgagne/Documents/Datasets/EMAGER/",
         0,
         2,
         9,
     )
     print(len(train_dl.dataset), len(train_dl.dataset[0]))
+
+    train_dl, test_dl = get_lnocv_dataloaders(
+        "/home/gabrielgagne/Documents/Datasets/EMAGER/",
+        0,
+        [1, 2],
+        [0, 3, 4],
+    )
+    print(len(train_dl.dataset), len(test_dl.dataset))
 
     _IP = get_docker_redis_ip()
     eutils.set_logging()
@@ -216,7 +228,7 @@ if __name__ == "__main__":
 
     train_dl, test_dl = get_redis_dataloaders(_IP, "train", "train", 0.8)
 
-    train_dl, test_dl = get_loocv_dataloaders(
+    train_dl, test_dl = get_lnocv_dataloaders(
         eutils.DATASETS_ROOT + "EMAGER/", "000", "002", 9
     )
 
