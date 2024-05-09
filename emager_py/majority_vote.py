@@ -1,5 +1,6 @@
 from collections import deque
 from scipy import stats
+import numpy as np
 
 
 class MajorityVote(deque):
@@ -10,27 +11,38 @@ class MajorityVote(deque):
         :param max_len: int, the maximum length of the queue
 
         Example:
-        ```python
-        import random as rd
-        q = MajorityVote(10)
-        for _ in range(100):
-            r = rd.randint(0, 6)
-            q.append(r)
-            vote = q.vote() # Get the majority vote
-        ```
+        >>> import random as rd
+        >>> q = MajorityVote(10)
+        >>> for _ in range(100):
+        >>>    r = rd.randint(0, 6)
+        >>>    q.append(r)
+        >>>    vote = q.vote() # Get the majority vote
         """
         super().__init__(maxlen=max_len)
 
-    def vote(self):
+    def vote(self) -> np.ndarray:
         return stats.mode(self).mode
+
+
+def majority_vote(arr: np.ndarray, n_votes):
+    # arr.shape == (n_votes,)
+    ret = np.zeros((0,), dtype=np.uint8)
+    q = MajorityVote(n_votes)
+    for i in arr:
+        q.append(i)
+        ret = np.append(ret, q.vote())
+    return ret
 
 
 if __name__ == "__main__":
     import random as rd
 
+    labels = np.random.randint(0, 6, (10000,))
+    votes = majority_vote(labels, 10)
+    print(votes.shape)
     q = MajorityVote(10)
 
     for _ in range(100):
         r = rd.randint(0, 6)
         q.append(r)
-        print(r, q.vote().mode)
+        print(r, q.vote())

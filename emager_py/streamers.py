@@ -4,7 +4,6 @@ import struct
 import socket
 import subprocess as sp
 import time
-import sys
 import logging as log
 from typing import Union
 
