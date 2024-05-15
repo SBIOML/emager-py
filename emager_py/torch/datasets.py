@@ -1,32 +1,12 @@
 import numpy as np
 import logging as log
 import torch
-from torch.utils.data import DataLoader, TensorDataset, Dataset
+from torch.utils.data import DataLoader, TensorDataset
 
 from emager_py import dataset as ed
 from emager_py import emager_redis as er
 from emager_py import data_processing as dp
 from emager_py import utils as eutils
-
-
-class TripletEmager(Dataset):
-    def __init__(self, triplets):
-        """
-        Initialize EMaGer dataset for triplet training.
-
-        Args:
-            triplets: Tuple of three numpy arrays: (anchors, positive, negative)
-        """
-        self.anchors = triplets[0]
-        self.positives = triplets[1]
-        self.negatives = triplets[2]
-
-    def __getitem__(self, index):
-        return (self.anchors[index], self.positives[index], self.negatives[index])
-
-    def __len__(self):
-        assert len(self.anchors) == len(self.positives) == len(self.negatives)
-        return len(self.anchors)
 
 
 def _get_generic_dataloaders(
@@ -174,11 +154,14 @@ def get_triplet_dataloaders(
     train_triplets = dp.generate_triplets(train_data, train_labels, n_triplets)
     val_triplets = dp.generate_triplets(val_data, val_labels, n_triplets // 10)
 
+    train_triplets = [torch.from_numpy(t) for t in train_triplets]
+    val_triplets = [torch.from_numpy(t) for t in val_triplets]
+
     train_dl = DataLoader(
-        TripletEmager(train_triplets), batch_size=train_batch, shuffle=True
+        TensorDataset(*train_triplets), batch_size=train_batch, shuffle=True
     )
     val_dl = DataLoader(
-        TripletEmager(val_triplets), batch_size=val_batch, shuffle=False
+        TensorDataset(*val_triplets), batch_size=val_batch, shuffle=False
     )
     _, test_dl = _get_generic_dataloaders(
         np.ndarray((0, 0)),
@@ -199,7 +182,7 @@ if __name__ == "__main__":
     from emager_py.emager_redis import get_docker_redis_ip
 
     train_dl, val_dl, test_dl = get_triplet_dataloaders(
-        "/home/gabrielgagne/Documents/Datasets/EMAGER/",
+        "/Users/gabrielgagne/Documents/Datasets/EMAGER/",
         0,
         2,
         9,
