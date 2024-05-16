@@ -11,11 +11,7 @@ class ui(QWidget):
 
         current_file_path = os.path.abspath(__file__)
         current_dir_path = os.path.dirname(current_file_path)
-        img_path = os.path.join(current_dir_path, "gestures_img/FiveGestures")
-
-        if nb_class == 4:
-            self.imgPath = os.path.join(img_path, 'Fourgesture')
-            self.label = [0, 1, 2, 3]
+        img_path = os.path.join(current_dir_path, "gestures_img")
         if nb_class == 5:
             self.imgPath = os.path.join(img_path, 'Fivegesture')
             self.label = [0, 1, 2, 3, 4]
@@ -41,7 +37,7 @@ class ui(QWidget):
 
 if __name__ == '__main__':
     app = QApplication([])
-    ui = ui()
+    ui = ui(6)
     ui.show()
     timer = QTimer()
     timer.timeout.connect(lambda : ui.setImg(4))
