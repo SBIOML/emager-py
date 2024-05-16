@@ -11,16 +11,16 @@ class ui(QWidget):
 
         current_file_path = os.path.abspath(__file__)
         current_dir_path = os.path.dirname(current_file_path)
-        file_path = os.path.join(current_dir_path, 'data.txt')
+        img_path = os.path.join(current_dir_path, "gestures_img/FiveGestures")
 
         if nb_class == 4:
-            self.imgPath = os.path.join(current_dir_path, 'Fourgesture')
+            self.imgPath = os.path.join(img_path, 'Fourgesture')
             self.label = [0, 1, 2, 3]
         if nb_class == 5:
-            self.imgPath = os.path.join(current_dir_path, 'Fivegesture')
+            self.imgPath = os.path.join(img_path, 'Fivegesture')
             self.label = [0, 1, 2, 3, 4]
         if nb_class == 6:
-            self.imgPath = os.path.join(current_dir_path, 'OBgesture')
+            self.imgPath = os.path.join(img_path, 'OBgesture')
             self.label = [0, 1, 2, 3, 4, 5]
         self.pixmaps = [QPixmap(self.imgPath + str(self.label[i]) + '.jpg') for i in self.label]
         self.pixmaps = [pm.scaled(QSize(400, 400)) for pm in self.pixmaps]
@@ -37,7 +37,6 @@ class ui(QWidget):
     def setImg(self, label):
         self.gestureImage.setPixmap(self.pixmaps[label])
         self.gestureImage.repaint()
-        #print("Label on screen:_____",label)
 
 
 if __name__ == '__main__':
