@@ -1,19 +1,25 @@
 [project]
 name = "emager-py"
-version = "0.1.0"
+version = "0.2.0"
 description = "Library to use EMaGer dataset and HD-sEMG cuff."
 authors = [{ name = "SBIOML", email = "gabrielpgagne@gmail.com" }]
 dependencies = [
     "numpy>=1.24.4",
-    "scipy",
+    "scipy>=1.7.3",
     "redis[hiredis]",
-    "pyserial",
+    "pyserial>=3.5",
     "packaging>=24.0",
     "libemg>=0.0.3",
     "pillow>=10.3.0",
     "sv-ttk>=2.6.0",
+    "PyQt5==5.15.10",
+    "PyQt5-Qt5==5.15.2",
+    "PyQt5-sip==12.13.0",
+    "tensorflow>=2.7.0",
+    "tensorflow-intel==2.15.1",
+    "tensorflow-io-gcs-filesystem==0.24.0",
 ]
-requires-python = ">=3.8"
+requires-python = "<3.11,>=3.9"
 readme = "README.md"
 license = { text = "MIT" }
 

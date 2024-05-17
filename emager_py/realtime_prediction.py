@@ -200,9 +200,12 @@ class HDEMG(object):
 
 if __name__=='__main__' :
     # parameters
-    model_name = 'realtime_documents/model_felix_with_transfer'
+    # Find path for the model
+    # Find path for the model
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    model_path = os.path.join(current_dir, "AI", "models", "model_felix_with_transfer")
     # Create Class
-    dataEMG = HDEMG(model=model_name, serialpath='COM5', baudrate=1500000)
+    dataEMG = HDEMG(model=model_path, serialpath='COM4', baudrate=1500000)
 
     try:
         # starts the main loop

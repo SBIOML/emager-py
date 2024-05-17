@@ -37,7 +37,7 @@ class ui(QWidget):
 
 if __name__ == '__main__':
     app = QApplication([])
-    ui = ui(6)
+    ui = ui(5)
     ui.show()
     timer = QTimer()
     timer.timeout.connect(lambda : ui.setImg(4))
