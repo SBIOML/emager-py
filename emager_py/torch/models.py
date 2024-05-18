@@ -178,7 +178,10 @@ class EmagerSCNN(L.LightningModule):
             self.relu2 = nn.ReLU()
             self.conv3 = nn.Conv2d(output_sizes[1], output_sizes[2], 5, padding=2)
             self.relu3 = nn.ReLU()
-            self.outp = nn.Identity()
+            self.fc4 = nn.Linear(
+                output_sizes[2] * np.prod(self.input_shape),
+                output_sizes[3],
+            )
         else:
             self.inp = qnn.QuantIdentity()
             self.conv1 = qnn.QuantConv2d(
@@ -212,13 +215,8 @@ class EmagerSCNN(L.LightningModule):
                 output_sizes[2] * np.prod(self.input_shape),
                 output_sizes[3],
                 bias=True,
-                weight_bit_width=quantization,
-                # bit_width=8,
-                # input_quant=quant.Int8ActPerTensorFloat,
-                # output_quant=quant.Int8ActPerTensorFloat,
+                bit_width=quantization,
             )
-            self.relu4 = qnn.QuantReLU(input_quant=quant.Int8ActPerTensorFloat)
-            # self.relu4 = qnn.QuantIdentity(return_quant_tensor=True)
 
     def forward(self, x):
         out = torch.reshape(x, (-1, 1, *self.input_shape))
@@ -227,14 +225,14 @@ class EmagerSCNN(L.LightningModule):
         out = self.bn2(self.relu2(self.conv2(out)))
         out = self.bn3(self.relu3(self.conv3(out)))
         out = self.flat(out)
-        out = self.relu4(self.fc4(out))
+        out = self.fc4(out)
         return out
 
     def training_step(self, batch, batch_idx):
         # training_step defines the train loop. It is independent of forward
         x1, x2, x3 = batch
         anchor, positive, negative = self(x1), self(x2), self(x3)
-        loss = self.loss(anchor, positive, negative)
+        loss =  F.triplet_margin_loss(anchor, positive, negative, margin=0.2)
         self.log("train_loss", loss)
         return loss
 
@@ -242,7 +240,7 @@ class EmagerSCNN(L.LightningModule):
         # training_step defines the train loop. It is independent of forward
         x1, x2, x3 = batch
         anchor, positive, negative = self(x1), self(x2), self(x3)
-        loss = self.loss(anchor, positive, negative)
+        loss = F.triplet_margin_loss(anchor, positive, negative, margin=0.2)
         self.log("val_loss", loss)
         return loss
 

@@ -25,6 +25,9 @@ class MajorityVote(deque):
 
 
 def majority_vote(arr: np.ndarray, n_votes):
+    """
+    Do majority voting over an entire numpy array.
+    """
     # arr.shape == (n_votes,)
     ret = np.zeros((0,), dtype=np.uint8)
     q = MajorityVote(n_votes)

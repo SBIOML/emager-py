@@ -4,7 +4,6 @@ from scipy import signal
 import emager_py.transforms as etrans
 import emager_py.dataset as ed
 import emager_py.quantization as dq
-import emager_py.utils as utils
 
 
 def extract_labels(data_array):
@@ -186,7 +185,7 @@ def prepare_shuffled_datasets(
         if isinstance(transform, str):
             transform = etrans.transforms_lut[transform]
         data = transform(data)
-        labels = labels[:: utils.get_transform_decimation(transform)]
+        labels = labels[:: etrans.get_transform_decimation(transform)]
 
     data = np.hstack((data, labels.reshape(-1, 1)))
 
@@ -407,6 +406,7 @@ def get_n_shot_embeddings(
 
 
 if __name__ == "__main__":
+    import emager_py.utils as utils
 
     utils.DATASETS_ROOT = "/Users/gabrielgagne/Documents/Datasets/"
     data_array = ed.load_emager_data(

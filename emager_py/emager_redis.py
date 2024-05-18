@@ -65,6 +65,7 @@ class EmagerRedis:
         self.r.delete(self.SAMPLES_FIFO_KEY)
         self.r.delete(self.LABELS_FIFO_KEY)
         self.r.delete(self.GENERATED_SAMPLES_KEY)
+        self.r.delete(self.PREDICTIONS_FIFO_KEY)
 
     def push_sample(self, samples: np.ndarray, labels: np.ndarray):
         self.r.lpush(self.SAMPLES_FIFO_KEY, samples.astype(np.int16).tobytes())

@@ -34,7 +34,6 @@ import logging as log
 import os
 
 import emager_py.data_processing as dp
-import emager_py.utils as eutils
 import emager_py.transforms as etrans
 
 _DATASET_TEMPLATE = {
@@ -223,7 +222,7 @@ def generate_raw_validation_data(
     Returns a tuple of generated data: (data, labels), and saves the numpy arrays to disk in `output_dir`
     """
 
-    decim = eutils.get_transform_decimation(transform_fn)
+    decim = etrans.get_transform_decimation(transform_fn)
 
     # Save raw validation data
     data = load_emager_data(emager_path, subject, session)
@@ -384,7 +383,6 @@ def get_lnocv_datasets(
 
 if __name__ == "__main__":
     from emager_py import utils
-    from emager_py import transforms
 
     utils.DATASETS_ROOT = "/home/gabrielgagne/Documents/Datasets/EMAGER/"
 

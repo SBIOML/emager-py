@@ -54,10 +54,6 @@ class EmagerDataGenerator:
         """
         Load data from disk and prepare it for serving, including shuffling if `self.shuffle` is True.
         """
-        assert (
-            session in ed.get_sessions()
-        ), f"Requested session is invalid ({session})."
-
         dat = ed.load_emager_data(self.__dataset_root, subject, session).astype(
             np.int16
         )
