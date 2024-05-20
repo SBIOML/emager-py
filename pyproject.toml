@@ -16,8 +16,6 @@ dependencies = [
     "PyQt5-Qt5==5.15.2",
     "PyQt5-sip==12.13.0",
     "tensorflow>=2.7.0",
-    "tensorflow-intel==2.15.1",
-    "tensorflow-io-gcs-filesystem==0.24.0",
 ]
 requires-python = "<3.11,>=3.9"
 readme = "README.md"
@@ -32,3 +30,6 @@ build-backend = "pdm.backend"
 
 [tool.pdm]
 distribution = true
+
+[tool.pdm.dev-dependencies]
+dev = []

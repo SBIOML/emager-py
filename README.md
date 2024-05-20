@@ -36,6 +36,17 @@ pdm add -e file:///path/to/emager-py --dev
 
 To update the dependencies: `pdm sync`
 
+If you modify the emager-py code and want to test it you can :
+
+```bash
+cd emager-py
+pdm venv create
+pdm install
+```
+
+Then you can run the the files you need 
+
+
 ### Pip
 
 You can install `emager-py` with `pip`:`
