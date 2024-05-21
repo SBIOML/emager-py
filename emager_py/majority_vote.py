@@ -21,7 +21,7 @@ class MajorityVote(deque):
         super().__init__(maxlen=max_len)
 
     def vote(self) -> np.ndarray:
-        return stats.mode(self).mode
+        return stats.mode(self, keepdims=False).mode
 
 
 def majority_vote(arr: np.ndarray, n_votes):
