@@ -21,6 +21,9 @@ def _get_generic_dataloaders(
     """
     Create dataloaders from numpy arrays.
 
+    Params:
+        shuffle: "train" | "test" | "both" : which data should the dataloaders shuffle
+
     Returns a tuple of (train_dataloader, test_dataloader)
     """
     train_set = TensorDataset(
@@ -56,6 +59,7 @@ def get_lnocv_dataloaders(
     transform=None,
     train_batch=64,
     test_batch=256,
+    emg_shape=(4,16)
 ):
     """
     Load LNOCV datasets from disk and return DataLoader instances for training and testing.
@@ -72,9 +76,9 @@ def get_lnocv_dataloaders(
         data, lo, absda, transform
     )
     return _get_generic_dataloaders(
-        train_data,
+        train_data.reshape((-1, 1, *emg_shape)),
         train_labels,
-        test_data,
+        test_data.reshape((-1, 1, *emg_shape)),
         test_labels,
         train_batch,
         test_batch,
@@ -90,6 +94,7 @@ def get_redis_dataloaders(
     transform=None,
     train_batch=64,
     test_batch=256,
+    emg_shape=(4,16)
 ):
     """
     Create dataloaders from a Redis database by dumping them into numpy arrays and doing some preprocessing steps.
@@ -105,9 +110,9 @@ def get_redis_dataloaders(
     )
 
     return _get_generic_dataloaders(
-        train_data,
+        train_data.reshape((-1, 1, *emg_shape)),
         train_labels,
-        test_data,
+        test_data.reshape((-1, 1, *emg_shape)),
         test_labels,
         train_batch,
         test_batch,
@@ -125,6 +130,7 @@ def get_triplet_dataloaders(
     transform=None,
     train_batch=64,
     val_batch=256,
+    emg_shape=(4, 16),
 ):
     """
     Get triplet dataloaders for training and validation, and a regular dataloader for testing.
@@ -154,8 +160,8 @@ def get_triplet_dataloaders(
     train_triplets = dp.generate_triplets(train_data, train_labels, n_triplets)
     val_triplets = dp.generate_triplets(val_data, val_labels, n_triplets // 10)
 
-    train_triplets = [torch.from_numpy(t) for t in train_triplets]
-    val_triplets = [torch.from_numpy(t) for t in val_triplets]
+    train_triplets = [torch.from_numpy(t).reshape((-1, 1, *emg_shape)) for t in train_triplets]
+    val_triplets = [torch.from_numpy(t).reshape((-1, 1, *emg_shape)) for t in val_triplets]
 
     train_dl = DataLoader(
         TensorDataset(*train_triplets), batch_size=train_batch, shuffle=True
@@ -166,7 +172,7 @@ def get_triplet_dataloaders(
     _, test_dl = _get_generic_dataloaders(
         np.ndarray((0, 0)),
         np.ndarray((0, 0)),
-        test_data,
+        test_data.reshape((-1, 1, *emg_shape)),
         test_labels,
         train_batch,
         val_batch,

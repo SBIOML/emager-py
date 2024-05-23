@@ -144,12 +144,11 @@ class EmagerCNN(L.LightningModule):
 
 
 class EmagerSCNN(L.LightningModule):
-    def __init__(self, input_shape, quantization=-1):
+    def __init__(self, quantization=-1):
         """
-        Create a reference Siamese EmagerCNN model.
+        Create a reference Fully Convolutional Siamese Emage model.
 
         Parameters:
-            - input_shape: shape of input data
             - quantization: bit-width of weights and activations. >=32 or <0 for no quantization
         """
         super().__init__()
@@ -158,17 +157,13 @@ class EmagerSCNN(L.LightningModule):
         self.test_preds = np.ndarray((0,), dtype=np.uint8)
 
         # Model definition
-        self.loss = nn.TripletMarginLoss(margin=0.2)
-        self.input_shape = input_shape
 
-        output_sizes = [32, 32, 32, 256]
+        output_sizes = [32, 32, 32]
 
         self.bn1 = nn.BatchNorm2d(output_sizes[0])
         self.bn2 = nn.BatchNorm2d(output_sizes[1])
         self.bn3 = nn.BatchNorm2d(output_sizes[2])
         self.flat = nn.Flatten()
-        self.dropout4 = nn.Dropout(0.5)
-        self.bn4 = nn.BatchNorm1d(output_sizes[3])
 
         if quantization < 0 or quantization >= 32:
             self.inp = nn.Identity()
@@ -177,11 +172,6 @@ class EmagerSCNN(L.LightningModule):
             self.conv2 = nn.Conv2d(output_sizes[0], output_sizes[1], 3, padding=1)
             self.relu2 = nn.ReLU()
             self.conv3 = nn.Conv2d(output_sizes[1], output_sizes[2], 5, padding=2)
-            self.relu3 = nn.ReLU()
-            self.fc4 = nn.Linear(
-                output_sizes[2] * np.prod(self.input_shape),
-                output_sizes[3],
-            )
         else:
             self.inp = qnn.QuantIdentity()
             self.conv1 = qnn.QuantConv2d(
@@ -210,22 +200,13 @@ class EmagerSCNN(L.LightningModule):
                 bias=False,
                 weight_bit_width=quantization,
             )
-            self.relu3 = qnn.QuantReLU(bit_width=quantization)
-            self.fc4 = qnn.QuantLinear(
-                output_sizes[2] * np.prod(self.input_shape),
-                output_sizes[3],
-                bias=True,
-                bit_width=quantization,
-            )
 
     def forward(self, x):
-        out = torch.reshape(x, (-1, 1, *self.input_shape))
-        out = self.inp(out)
+        out = self.inp(x)
         out = self.bn1(self.relu1(self.conv1(out)))
         out = self.bn2(self.relu2(self.conv2(out)))
-        out = self.bn3(self.relu3(self.conv3(out)))
+        out = self.bn3(self.conv3(out))
         out = self.flat(out)
-        out = self.fc4(out)
         return out
 
     def training_step(self, batch, batch_idx):
