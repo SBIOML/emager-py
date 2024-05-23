@@ -1,8 +1,8 @@
 import numpy as np
 from scipy import signal
 
-import emager_py.dataset as ed
-import emager_py.quantization as dq
+import emager_py.data_processings.dataset as ed
+import emager_py.data_processings.quantization as dq
 import emager_py.utils as utils
 
 

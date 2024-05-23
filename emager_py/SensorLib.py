@@ -147,7 +147,7 @@ class HDSensor(object):
             #bytesToRead = bytes_available - (bytes_available % 128)
             #data_packet = reorder(list(self.ser.read(bytesToRead)), self.mask, 63)
             data_packet = reorder(list(self.ser.read(1024)), self.mask, 63)
-            print("Data packet received :", data_packet)
+            # print("Data packet received :", data_packet)
 
         for packet in data_packet:
             samples = [int.from_bytes(bytes([packet[i * 2], packet[i * 2 + 1]]), 'big', signed=True) for i in range(64)]
