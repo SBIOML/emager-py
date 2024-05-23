@@ -124,13 +124,17 @@ class SerialStreamer(EmagerStreamerInterface):
         """
         Close serial port.
         """
-        self.ser.close()
+        if self.ser:
+            if self.ser.is_open:
+                self.ser.close()
 
     def open(self):
         """
         Open serial port.
         """
-        self.ser.open()
+        if self.ser:
+            if not self.ser.is_open:
+                self.ser.open()
 
     def process_packet(self, data_packet, number_of_packet):
         valid_packets = []
@@ -143,6 +147,16 @@ class SerialStreamer(EmagerStreamerInterface):
                 # Second LSB bytes
                 valid_packets.append(np.roll(data_slice, -offset))
         return valid_packets
+    
+    def wait_for_packet(self, sleep_time=0.1):
+        self.open()
+        bytes_available = self.ser.in_waiting
+        bytes_to_read = bytes_available - (bytes_available % self.packet_size)
+        # Wait to have a complete data packet
+        while bytes_to_read < self.packet_size:
+            bytes_available = self.ser.in_waiting
+            bytes_to_read = bytes_available - (bytes_available % self.packet_size)
+            time.sleep(sleep_time)
 
     def read(self) -> np.ndarray:
         """
@@ -154,14 +168,19 @@ class SerialStreamer(EmagerStreamerInterface):
             bytes_array = self.ser.read_all()
             data_packet = np.frombuffer(bytes_array, dtype=np.uint16).reshape(-1, 64)
             return data_packet
+        
+        self.open()
 
         bytes_available = self.ser.in_waiting
         bytes_to_read = bytes_available - (bytes_available % self.packet_size)
         samples_list = []
         if bytes_to_read > 0:
+            # Read the available bytes from the serial port
             raw_data_packet = self.ser.read(bytes_to_read)
             data_packet = np.frombuffer(raw_data_packet, dtype=np.uint8)
             number_of_packet = int(len(data_packet) / 128)
+
+            # Process the data packet
             processed_packets = self.process_packet(data_packet, number_of_packet)
             for packet in processed_packets:
                 samples = np.asarray(struct.unpack(self.fmt, packet), dtype=np.int16)[
