@@ -32,6 +32,7 @@ class HDEMG(object):
                  input_buffer_size=200, prediction_buffer_size=200):
         
         self.inputStreamer = inputStreamer
+        self._outputs_calbacks = []
         
         # parameters
         self.nb_class = nb_class
@@ -149,12 +150,32 @@ class HDEMG(object):
                     count[n] = self.majority_buffer.count(n)
                     if count[n] > hysterisis[n]:
                         self.final_pred = n
-                        now = datetime.datetime.now()
-                        print(F"Final Pred: {self.final_pred} ({now.strftime('%H:%M:%S')})")
+                        # now = datetime.datetime.now()
+                        # print(F"Final Pred: {self.final_pred} ({now.strftime('%H:%M:%S')})")
                 
             else:
                 time.sleep(0.002)
-                
+
+    def register_output_callback(self, callback):
+        if callback not in self._outputs_calbacks:
+            self._outputs_calbacks.append(callback)
+
+    def unregister_output_callback(self, callback):
+        if callback in self._outputs_calbacks:
+            self._outputs_calbacks.remove(callback)
+
+    def _notify_output_callbacks(self, data):
+        for callback in self._outputs_calbacks:
+            callback(data)
+
+    def output_data(self):
+        while True:
+            output = {
+                'final_pred': self.final_pred,
+                'time': datetime.datetime.now()
+            }
+            self._notify_output_callbacks(output)
+            time.sleep(0.1)
 
 
     def start(self):
@@ -163,6 +184,9 @@ class HDEMG(object):
         process_3 = threading.Thread(target=self.moving_average)
         process_4 = threading.Thread(target=self.cnn_predict)
         process_5 = threading.Thread(target=self.majority_vote)
+        process_6 = threading.Thread(target=self.output_data)
+
+        process_6.start()
         process_5.start()
         process_4.start()
         process_3.start()
@@ -176,11 +200,9 @@ class HDEMG(object):
 
 if __name__=='__main__' :
     import os
-    import sys
     from emager_py.visualisation import realtime_GUI
     from emager_py.utils.find_usb import find_psoc
-    from emager_py.streamers import SerialStreamer, TcpStreamer
-    import queue
+    from emager_py.streamers import SerialStreamer
 
     # parameters
 
@@ -202,13 +224,15 @@ if __name__=='__main__' :
     # Create GUI
     gui = realtime_GUI.RealTimeGestureUi(5)
 
+    # register the callback
+    def call_back_gui(data):
+        gui.update_label(data['final_pred'])
+    dataEMG.register_output_callback(call_back_gui)
 
-    def label_thread():
-        while True:
-            gui.update_label(dataEMG.final_pred)
-            time.sleep(0.1)
-    label_thread_instance = threading.Thread(target=label_thread, args=())
-    label_thread_instance.start()
+    def call_back_data(data):
+        print(data)
+        print(f"Final Pred: {data['final_pred']} ({data['time'].strftime('%H:%M:%S')})")
+    dataEMG.register_output_callback(call_back_data)
 
     # starts the threads
     dataEMG.start()
