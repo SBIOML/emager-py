@@ -68,7 +68,6 @@ class HDEMG(object):
         self.inputStreamer.clear() 
 
         while True:
-            self.inputStreamer.wait_for_packet(0.05)
             read_data = self.inputStreamer.read()
             if read_data is None or len(read_data) == 0:
                 continue
@@ -155,6 +154,7 @@ class HDEMG(object):
                 
             else:
                 time.sleep(0.002)
+                
 
 
     def start(self):

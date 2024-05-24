@@ -147,16 +147,6 @@ class SerialStreamer(EmagerStreamerInterface):
                 # Second LSB bytes
                 valid_packets.append(np.roll(data_slice, -offset))
         return valid_packets
-    
-    def wait_for_packet(self, sleep_time=0.1):
-        self.open()
-        bytes_available = self.ser.in_waiting
-        bytes_to_read = bytes_available - (bytes_available % self.packet_size)
-        # Wait to have a complete data packet
-        while bytes_to_read < self.packet_size:
-            bytes_available = self.ser.in_waiting
-            bytes_to_read = bytes_available - (bytes_available % self.packet_size)
-            time.sleep(sleep_time)
 
     def read(self) -> np.ndarray:
         """
@@ -173,6 +163,12 @@ class SerialStreamer(EmagerStreamerInterface):
 
         bytes_available = self.ser.in_waiting
         bytes_to_read = bytes_available - (bytes_available % self.packet_size)
+        # Wait to have a complete data packet
+        while bytes_to_read < self.packet_size:
+            bytes_available = self.ser.in_waiting
+            bytes_to_read = bytes_available - (bytes_available % self.packet_size)
+            time.sleep(0.02)
+            
         samples_list = []
         if bytes_to_read > 0:
             # Read the available bytes from the serial port
