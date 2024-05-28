@@ -6,3 +6,4 @@ pyvenv.cfg
 .*
 dist
 gestures
+temp
