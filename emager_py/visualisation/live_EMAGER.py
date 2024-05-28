@@ -147,16 +147,16 @@ def f():
     data = sensor.read(0.025)  # sensor.sample()
     nb_pts = len(data[0])
     data = np.transpose(data) - np.tile(baseline, np.transpose((nb_pts,1)))
-    #print(np.mean(data,axis=1).shape)
-    #print(data)
+    print(np.mean(data,axis=1).shape)
+    print(data)
     data = data - np.transpose(np.tile(np.mean(data,axis=1),(64,1)))
-    #print(data)
-    #print(data.shap)
+    print(data)
+    print(data.shape)
     #data = np.transpose(data)
     data = np.reshape(data, (nb_pts, 4, 16))
     mean_data = np.mean(np.absolute(data), axis=0)
-    #print("max:", np.max(mean_data))
-    #print("min:", np.min(mean_data))
+    print("max:", np.max(mean_data))
+    print("min:", np.min(mean_data))
     # Rescale data and makes colors
     # min = 100  # -32769
     # max = 22000  # 32769
