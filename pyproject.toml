@@ -15,6 +15,7 @@ dependencies = [
     "tensorflow>= 2.15",
     "pyqt6>=6.6.1",
     "tensorflow-io-gcs-filesystem==0.31.0",
+    "bleak>=0.22.1",
 ]
 requires-python = "<3.12,>=3.9"
 readme = "README.md"
