@@ -7,6 +7,7 @@ import csv
 import numpy as np
 import shutil
 import json
+import time
 import threading
 from libemg.screen_guided_training import ScreenGuidedTraining
 from emager_py.streamers import EmagerStreamerInterface
@@ -262,20 +263,22 @@ class EmagerGuidedTraining:
         return self.final_dir
 
     def save_data(self):
-        pass
-        data  = np.array(streamer.read())
-        data = np.transpose(data)
+        # Read data from streamer
+        start_time = time.time()
+        data = np.empty((0, 64))
+        while (time.time()-start_time) < self.training_time:
+            data_read = self.streamer.read()
+            data = np.append(data, data_read, axis=0)
 
+        # Create directories
         self.get_folder()
         self.arm = self.arm_lbl.cget("text")
         self.gestureNb = str(self.gesture_index).zfill(3)
         self.trialNb = str(self.current_rep).zfill(3)
-
         try:
             os.mkdir(self.user_dir)
         except FileExistsError:
             pass
-
         try:
             os.mkdir(self.final_dir)
         except FileExistsError:
@@ -377,13 +380,13 @@ if __name__ == "__main__":
     from emager_py.streamers import SerialStreamer
     from emager_py.utils.find_usb import find_psoc
 
-    imgbox = ImageListbox(num_columns=5)
+    imgbox = ImageListbox(num_columns=3)
     selected_gestures = imgbox.start()
     print(f"Selected gestures: {selected_gestures}")
 
-    # PORT = find_psoc()
-    PORT = "COM13" #virtual port
-    streamer = SerialStreamer(PORT, virtual=True)
+    PORT = find_psoc()
+    # PORT = "COM13" #virtual port
+    streamer = SerialStreamer(PORT, baud=1500000)
 
     def my_cb(gesture):
         print("Simulating long running process...")
