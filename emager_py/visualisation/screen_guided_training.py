@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import PhotoImage, ttk, filedialog
+from tkinter import ttk, filedialog
 import sv_ttk
 from PIL import ImageTk, Image
 import os
@@ -12,60 +12,80 @@ from libemg.screen_guided_training import ScreenGuidedTraining
 from emager_py.streamers import EmagerStreamerInterface
 
 
-
-
 def get_all_gestures_from_libemg(out_path: str, img_format="png"):
     train_ui = ScreenGuidedTraining()
     out_path += "/"
+    gestures = list(range(1, 35))
     # Download all gestures and store them in the "gestures/" folder
-    train_ui.download_gestures(list(range(1,35)), out_path)
+    train_ui.download_gestures(gestures, out_path)
     list_file = list(filter(lambda f: f.endswith("json"), os.listdir(out_path)))[0]
     gestures_name = []
     with open(out_path + list_file, "r") as f:
         gestures_dict = json.load(f)
-        for g in range(1, 31):
+        for g in gestures:
             gestures_name.append(out_path + gestures_dict[str(g)] + "." + img_format)
     return gestures_name
 
 class ImageListbox(tk.Frame):
-    def __init__(self, gesture_folder: str = "gesturesALL"):
+    def __init__(self, gesture_folder: str = "gestures", images_size=(150, 150), num_columns=3):
         self.root = tk.Tk()
         self.root.title("Choose Pictures")
         self.root.resizable(True, True)
         sv_ttk.set_theme("dark")
 
+        self.num_columns = num_columns
+        self.images_size = images_size
         self.gesture_folder = gesture_folder
         self.selected_indices = []
+        self.selected_gestures = []
+        self.image_bg = "black"
         self.create_widgets()
 
     def create_widgets(self):
+        # Create a frame to hold the buttons
+        self.button_frame = ttk.Frame(self.root)
+        self.button_frame.pack(side=tk.BOTTOM, pady=10)
+
+        # Create the Continue button
+        self.continue_btn = ttk.Button(self.button_frame, text="Continue", command=self.on_continue)
+        self.continue_btn.pack(side=tk.LEFT, padx=10)
+
+        # Create the Cancel button
+        self.cancel_btn = ttk.Button(self.button_frame, text="Cancel", command=self.on_cancel)
+        self.cancel_btn.pack(side=tk.LEFT, padx=10)
+
         # Create a canvas to hold the images
-        self.canvas = tk.Canvas(self.root, width=500, height=500, bg='white')
+        _width = self.num_columns * (self.images_size[0] + 20)
+        _height = _width
+        self.canvas = tk.Canvas(self.root, width=_width, height=_height)
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         # Create a scrollbar for the canvas
-        self.scrollbar = tk.Scrollbar(self.root, orient=tk.VERTICAL, command=self.canvas.yview)
+        self.scrollbar = ttk.Scrollbar(self.root, orient=tk.VERTICAL, command=self.canvas.yview)
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.canvas.config(yscrollcommand=self.scrollbar.set)
 
         # Create a frame inside the canvas to hold the images
-        self.frame = tk.Frame(self.canvas, bg='white')
+        self.frame = ttk.Frame(self.canvas)
         self.canvas.create_window((0, 0), window=self.frame, anchor=tk.NW)
 
         # Bind mousewheel to scroll
         self.root.bind("<MouseWheel>", self.on_mousewheel)
 
         # Add images to the list
-        self.image_paths = ["image1.png", "image2.png", "image3.png"]
         self.image_paths = get_all_gestures_from_libemg(self.gesture_folder)
-        self.images = [PhotoImage(file=image_path) for image_path in self.image_paths]
-
-        self.labels = []
-        for i, image in enumerate(self.images):
-            label = tk.Label(self.frame, image=image, bg='white')
-            label.pack(anchor=tk.W)
-            label.bind("<Button-1>", lambda event, index=i: self.on_select(index))
-            self.labels.append(label)
+        self.images = []
+        self.images_lbl = []
+        for i, image_path in enumerate(self.image_paths):
+            image = Image.open(image_path).resize(self.images_size)
+            image = ImageTk.PhotoImage(image)
+            image_lbl = tk.Label(self.frame, image=image, bg=self.image_bg, borderwidth=5)
+            image_lbl.grid(row=i // self.num_columns, column=i % self.num_columns, padx=5, pady=5)
+            image_lbl.bind("<Button-1>", lambda event, index=i: self.on_select(index))
+            image_lbl.configure(image=image)
+            image_lbl.image = image
+            self.images.append(image)
+            self.images_lbl.append(image_lbl)
 
         # Update the scroll region
         self.canvas.update_idletasks()
@@ -77,38 +97,36 @@ class ImageListbox(tk.Frame):
     def on_select(self, index):
         if index in self.selected_indices:
             self.selected_indices.remove(index)
-            self.labels[index].config(bg='white')
+            self.selected_gestures.remove(self.image_paths[index])
+            self.images_lbl[index].config(bg=self.image_bg)
         else:
             self.selected_indices.append(index)
-            self.labels[index].config(bg='lightblue')
+            self.selected_gestures.append(self.image_paths[index])
+            self.images_lbl[index].config(bg='blue')
+
+    def on_continue(self):
+        self.root.destroy()
+
+    def on_cancel(self):
+        self.selected_gestures = []
+        self.root.destroy()
 
     def start(self):
         self.root.mainloop()
-        return self.image_paths
+        return self.selected_gestures
+    
+    def cleanup(self):
+        shutil.rmtree(self.image_paths)
 
 
-
-def get_gestures_from_libemg(gestures: list, out_path: str, img_format="png"):
-    train_ui = ScreenGuidedTraining()
-    out_path += "/"
-    # Download gestures with indices 1,2,3,4,5 and store them in the "gestures/" folder
-    train_ui.download_gestures(gestures, out_path, download_gifs=True)
-    list_file = list(filter(lambda f: f.endswith("json"), os.listdir(out_path)))[0]
-    gestures_name = []
-    with open(out_path + list_file, "r") as f:
-        gestures_dict = json.load(f)
-        for g in gestures:
-            gestures_name.append(out_path + gestures_dict[str(g)] + "." + img_format)
-    return gestures_name
 
 class EmagerGuidedTraining:
     def __init__(
         self,
         streamer: EmagerStreamerInterface,
+        gestures: list,
         reps: int = 5,
         training_time: float = 5,
-        gestures: list[int] = [2, 14, 26, 1, 14, 30],
-        gestures_path: str = "gestures",
         resume_training_callback: callable = None,
         callback_arg: None | str = None,
     ):
@@ -123,9 +141,7 @@ class EmagerGuidedTraining:
         self.total_reps = reps
         self.current_rep = 0
         self.image = None
-        self.gestures_path = gestures_path
-        self.gestures = get_gestures_from_libemg(gestures, gestures_path)
-        print(self.gestures)
+        self.gestures = gestures
         self.gesture_index = 0
         self.training_time = training_time
         self.resume_training_callback = resume_training_callback
@@ -334,9 +350,6 @@ class EmagerGuidedTraining:
             self.timer["text"] = "Press Continue"
             self.state = 0
 
-    def cleanup(self):
-        shutil.rmtree(self.gestures_path)
-
     def cancel_training(self):
         self.root.destroy()
 
@@ -364,14 +377,13 @@ if __name__ == "__main__":
     from emager_py.streamers import SerialStreamer
     from emager_py.utils.find_usb import find_psoc
 
-    # choose_pictures()
+    imgbox = ImageListbox(num_columns=5)
+    selected_gestures = imgbox.start()
+    print(f"Selected gestures: {selected_gestures}")
 
-    imgbox = ImageListbox()
-    imgbox.start()
-
-    port = find_psoc()
-    streamer = SerialStreamer(port)
-
+    # PORT = find_psoc()
+    PORT = "COM13" #virtual port
+    streamer = SerialStreamer(PORT, virtual=True)
 
     def my_cb(gesture):
         print("Simulating long running process...")
@@ -379,7 +391,8 @@ if __name__ == "__main__":
         print(f"Gesture {gesture+1} done!")
 
     egt = EmagerGuidedTraining(
-        streamer, resume_training_callback=my_cb, reps=3, training_time=4, callback_arg="gesture"
+        streamer, selected_gestures,
+        resume_training_callback=my_cb,  callback_arg="gesture", reps=3, training_time=4,
     )
     egt.start()
     print("Exiting...")
