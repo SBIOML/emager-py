@@ -136,13 +136,13 @@ class SerialStreamer(EmagerStreamerInterface):
             if not self.ser.is_open:
                 self.ser.open()
 
-    def process_packet(self, data_packet, number_of_packet):
+    def process_packet(self, data_packet, number_of_packet, validate=True):
         valid_packets = []
         for i in range(number_of_packet):
             data_slice = data_packet[i * 128 : (i + 1) * 128]
             data_lsb = np.bitwise_and(data_slice[1::2], self.ones_mask)
             zero_indices = np.where(data_lsb == 0)[0]
-            if len(zero_indices) == 1:
+            if len(zero_indices) == 1 and validate:
                 offset = (2 * zero_indices[0] + 1) - 1
                 # Second LSB bytes
                 valid_packets.append(np.roll(data_slice, -offset))
@@ -154,10 +154,6 @@ class SerialStreamer(EmagerStreamerInterface):
 
         Returns a (n_samples, n_ch) array
         """
-        if self.virtual:
-            bytes_array = self.ser.read_all()
-            data_packet = np.frombuffer(bytes_array, dtype=np.uint16).reshape(-1, 64)
-            return data_packet
         
         self.open()
 
@@ -173,11 +169,16 @@ class SerialStreamer(EmagerStreamerInterface):
         if bytes_to_read > 0:
             # Read the available bytes from the serial port
             raw_data_packet = self.ser.read(bytes_to_read)
+
+            if self.virtual:
+                data_packet = np.frombuffer(raw_data_packet, dtype=np.uint16).reshape(-1, 64)
+                return data_packet
+            
             data_packet = np.frombuffer(raw_data_packet, dtype=np.uint8)
             number_of_packet = int(len(data_packet) / 128)
 
             # Process the data packet
-            processed_packets = self.process_packet(data_packet, number_of_packet)
+            processed_packets = self.process_packet(data_packet, number_of_packet, validate=(not self.virtual))
             for packet in processed_packets:
                 samples = np.asarray(struct.unpack(self.fmt, packet), dtype=np.int16)[
                     self.channel_map

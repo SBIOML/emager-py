@@ -80,6 +80,14 @@ class EmagerDataGenerator:
         )
         return self.emg, self.labels
 
+    def start(self):
+        """
+        Start serving data deamon thread.
+        """
+        t = threading.Thread(target=self.serve_data,  daemon=True)
+        t.start()
+        return t
+
     def serve_data(self, threaded: bool = False):
         """
         For loop over `self.generate_data` which pushes 1 data batch to `self.__redis` in a timely manner.
@@ -91,23 +99,18 @@ class EmagerDataGenerator:
         )
 
         self.__idx = 0
-        if self.__threaded and threaded:
-            t = threading.Thread(target=self.serve_data, args=(False,))
-            t.start()
-            return t
-        else:
-            since = time.perf_counter()
-            sleep_time = push_ts
-            true_ts = push_ts
-            while self.push_sample():
-                if self.__idx % 100 == 0:
-                    true_ts = (time.perf_counter() - since) / (self.__idx + 1)
-                    err_ts = push_ts - true_ts
-                    sleep_time += err_ts
-                    # log.info(f"true avg fs: {1/true_ts:.4f} Hz, {err_ts:.6f} s error")
-
-                if sleep_time > 0:
-                    time.sleep(sleep_time)
+        since = time.perf_counter()
+        sleep_time = push_ts
+        true_ts = push_ts
+        while self.push_sample():
+            if self.__idx % 100 == 0:
+                true_ts = (time.perf_counter() - since) / (self.__idx + 1)
+                err_ts = push_ts - true_ts
+                sleep_time += err_ts
+                # log.info(f"true avg fs: {1/true_ts:.4f} Hz, {err_ts:.6f} s error")
+                
+            if sleep_time > 0:
+                time.sleep(sleep_time)
 
     def push_sample(self):
         if self.__idx >= len(self.labels):
@@ -122,6 +125,7 @@ class EmagerDataGenerator:
 
 
 if __name__ == "__main__":
+    from emager_py.utils import utils
     utils.set_logging()
 
     batch = 10
