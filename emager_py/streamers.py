@@ -8,7 +8,7 @@ import sys
 import logging as log
 from typing import Union
 
-import emager_py.utils.emager_redis as er
+import emager_py.data_processings.emager_redis as er
 
 
 class EmagerStreamerInterface:
@@ -328,32 +328,3 @@ def socat_serial_serial(serial_port_1: str, serial_port_2: str) -> sp.Popen:
     )
     time.sleep(3)
     return proc
-
-
-if __name__ == "__main__":
-
-    PORT = 2341
-    VSERIAL = "/tmp/tty0"
-    VSERIAL2 = "/tmp/tty1"
-    BAUD = 230400
-
-    proc = socat_tcp_serial(PORT, VSERIAL)
-    # proc = socat_serial_serial(VSERIAL, VSERIAL2)
-
-    server_streamer = TcpStreamer(PORT, "localhost", False)
-    # server_streamer = SerialStreamer(VSERIAL2, BAUD, True)
-
-    client_streamer = SerialStreamer(VSERIAL, BAUD, True)
-
-    for i in range(10):
-        print("-" * 20)
-        data = np.random.randint(0, 1024, (10, 64))
-        print("Sending data of size:", data.size)
-        server_streamer.write(data)
-        print("Data sent.")
-        ret = client_streamer.read()
-        print("Received data of size:", ret.size)
-
-        time.sleep(0.5)
-
-    proc.kill()

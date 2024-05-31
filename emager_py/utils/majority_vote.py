@@ -24,13 +24,3 @@ class MajorityVote(deque):
     def vote(self):
         return stats.mode(self).mode
 
-
-if __name__ == "__main__":
-    import random as rd
-
-    q = MajorityVote(10)
-
-    for _ in range(100):
-        r = rd.randint(0, 6)
-        q.append(r)
-        print(r, q.vote().mode)

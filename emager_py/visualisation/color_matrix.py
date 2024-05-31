@@ -63,13 +63,3 @@ class RealTimeMatrixPlot:
 
     def show(self):
         plt.show()
-
-# Usage
-if __name__ == "__main__":
-    from emager_py.streamers import SerialStreamer
-    from emager_py.utils.find_usb import find_psoc
-
-    PORT = find_psoc()
-    stream_client = SerialStreamer(PORT, 1500000)
-    rt_plot = RealTimeMatrixPlot(stream_client, colormap='hot')
-    rt_plot.show()

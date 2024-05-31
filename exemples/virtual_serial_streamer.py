@@ -31,12 +31,17 @@ data_generator = dg.EmagerDataGenerator(
 emg, lab = data_generator.prepare_data("000", "001")
 
 def read_data_thread():
-    while True:
-        ret = client_streamer.read()
-        print(f"Recived data ({ret.shape}) : \n {ret}")
-        time.sleep(0.5)
+    while running:
+        try:
+            ret = client_streamer.read()
+            print(f"Recived data ({ret.shape}) : \n {ret}")
+            time.sleep(0.5)
+        except Exception as e:
+            print(f"Error reading data: {e}")
+            break
 
-read_thread = threading.Thread(target=read_data_thread)
+running = True
+read_thread = threading.Thread(target=read_data_thread, daemon=True)
 
 try:
     read_thread.start()
@@ -47,7 +52,11 @@ try:
         time.sleep(1)
 finally:
     print("Exiting...")
-    read_thread.join()
+    running = False
+    server_streamer.close()
+    client_streamer.close()
     generator_thread.join()
+    read_thread.join()
     if sys.platform.startswith('linux'):
         proc.kill()
+    

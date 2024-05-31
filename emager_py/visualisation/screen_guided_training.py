@@ -393,31 +393,3 @@ class EmagerGuidedTraining:
 
     def start(self):
         self.root.mainloop()
-
-
-if __name__ == "__main__":
-    import time
-    from emager_py.streamers import SerialStreamer
-    from emager_py.utils.find_usb import find_psoc
-
-    imgbox = ImageListbox(images_size=(250,200), num_columns=3)
-    selected_gestures = imgbox.start()
-    print(f"Selected gestures: {selected_gestures}")
-
-    PORT = find_psoc()
-    # PORT = "COM13" #virtual port
-    streamer = SerialStreamer(PORT, baud=1500000)
-
-    def my_cb(gesture):
-        print("Simulating long running process...")
-        time.sleep(5)
-        print(f"Gesture {gesture+1} done!")
-
-    egt = EmagerGuidedTraining(
-        streamer, selected_gestures,
-        resume_training_callback=my_cb,  callback_arg="gesture", reps=3, training_time=4,
-    )
-    egt.start()
-    print("Exiting...")
-    
-
