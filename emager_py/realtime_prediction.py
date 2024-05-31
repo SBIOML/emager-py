@@ -33,6 +33,7 @@ class HDEMG(object):
         
         self.inputStreamer = inputStreamer
         self._outputs_calbacks = []
+        self.stop_event = threading.Event()
         
         # parameters
         self.nb_class = nb_class
@@ -68,7 +69,7 @@ class HDEMG(object):
         countSamples = 0
         self.inputStreamer.clear() 
 
-        while True:
+        while not self.stop_event.is_set():
             read_data = self.inputStreamer.read()
             if read_data is None or len(read_data) == 0:
                 continue
@@ -83,7 +84,7 @@ class HDEMG(object):
 
     def preprocess(self):
         y = np.zeros((64,))
-        while True:
+        while not self.stop_event.is_set():
             if self.sample_buffer:
                 if len(self.sample_buffer) <= 64:
                     time.sleep(0.002)
@@ -99,7 +100,7 @@ class HDEMG(object):
 
 
     def moving_average(self): #MinMaxScale as well
-        while True:
+        while not self.stop_event.is_set():
             if self.filter_buffer:
                 if len(self.filter_buffer) <= 0:
                     time.sleep(0.002)
@@ -116,7 +117,7 @@ class HDEMG(object):
 
     def cnn_predict(self):
         i = 0
-        while True:
+        while not self.stop_event.is_set():
             if self.input_buffer:
                 if len(self.input_buffer) <= 0:
                     time.sleep(0.002)
@@ -138,7 +139,7 @@ class HDEMG(object):
         hysterisis = [210, 130, 130, 130, 200]  # 0:fist, 1:pouce, 2:neutre, 3:pince, 4: doigt
         count = np.zeros((6,1))
         pred_nb = 0
-        while True:
+        while not self.stop_event.is_set():
             if self.prediction_buffer:
                 if len(self.prediction_buffer) <= 0:
                     time.sleep(0.002)
@@ -169,7 +170,7 @@ class HDEMG(object):
             callback(data)
 
     def output_data(self):
-        while True:
+        while not self.stop_event.is_set():
             output = {
                 'final_pred': self.final_pred,
                 'time': datetime.datetime.now()
@@ -186,16 +187,14 @@ class HDEMG(object):
         process_5 = threading.Thread(target=self.majority_vote)
         process_6 = threading.Thread(target=self.output_data)
 
-        process_6.start()
-        process_5.start()
-        process_4.start()
-        process_3.start()
-        process_2.start()
-        process_1.start()
+        self.threads = [process_6, process_5, process_4, process_3, process_2, process_1]
+        self.stop_event.clear()
+        for thread in self.threads:
+            thread.start()
 
     def stop(self):
-        for thread in threading.enumerate():
-            if thread != threading.current_thread():
-                thread.join()
+        self.stop_event.set()
+        for thread in self.threads:
+            thread.join()
 
 

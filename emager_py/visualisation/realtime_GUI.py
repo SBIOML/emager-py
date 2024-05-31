@@ -14,20 +14,26 @@ class RealTimeGestureUi(QWidget):
 
         super().__init__()
 
-        self.isRunning = True
         self.images_path = images
         self.img_label = 0
+        self.label_text = "Label Text"
         self.timer = QTimer(self)
         self.timer.timeout.connect(lambda: self.setImg(self.img_label))
+        
 
-        self.pixmaps = [QPixmap(img) for img in self.images_path]
+        self.pixmaps = [QPixmap(img) for img in self.images_path]   
         self.pixmaps = [pm.scaled(QSize(400, 400)) for pm in self.pixmaps]
         self.setWindowTitle('RealTime Gesture Recognition')
 
         layout = QGridLayout()
+
+        self.labelText = QtWidgets.QLabel(self, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.labelText.setText(self.label_text)
+        layout.addWidget(self.labelText, 0, 0)
+
         self.gestureImage = QtWidgets.QLabel(self)  # alignment=Qt.AlignCenter
         self.gestureImage.setPixmap(self.pixmaps[self.img_label])
-        layout.addWidget(self.gestureImage, 0, 0)
+        layout.addWidget(self.gestureImage, 1, 0)
 
         self.setLayout(layout)
 
@@ -36,6 +42,9 @@ class RealTimeGestureUi(QWidget):
     @pyqtSlot(int)
     def setImg(self, label):
         self.img_label = label
+        self.label_text = self.images_path[label].split("/")[-1].split(".")[0]
+        self.label_text = f"{self.label_text} (label : {label})"
+        self.labelText.setText(self.label_text)
         self.gestureImage.setPixmap(self.pixmaps[label])
 
     def update_label(self, label):
@@ -45,9 +54,7 @@ class RealTimeGestureUi(QWidget):
         self.show()
         self.timer.start(1000)
         self.app.aboutToQuit.connect(self.stop)
-        self.isRunning = True
-        sys.exit(self.app.exec())
+        self.app.exec()
 
     def stop(self):
         self.timer.stop()
-        self.isRunning = False

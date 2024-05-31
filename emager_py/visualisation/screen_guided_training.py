@@ -86,7 +86,7 @@ class ImageListbox(tk.Frame):
             
             image_lbl = tk.Label(self.frame, image=image, bg=self.image_bg, borderwidth=5, text="fadsf")
             image_lbl.grid(row=i // self.num_columns, column=i % self.num_columns, padx=5, pady=5)
-            image_file = os.path.basename(image_path)
+            image_file = str(os.path.basename(image_path)).split(".")[0]
             image_file_lbl = tk.Label(self.frame, text=image_file)
             image_file_lbl.grid(row=i // self.num_columns, column=i % self.num_columns, sticky="n")
             img_tracker_lbl = tk.Label(self.frame, text="text", fg=self.select_color, font=("Arial", 22, "bold"))
