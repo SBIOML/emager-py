@@ -13,11 +13,11 @@ from libemg.screen_guided_training import ScreenGuidedTraining
 from emager_py.streamers import EmagerStreamerInterface
 
 
-def get_all_gestures_from_libemg(out_path: str, img_format="png"):
+def get_gestures_from_libemg(out_path: str, gestures:list=[], img_format="png"):
     train_ui = ScreenGuidedTraining()
     out_path += "/"
-    gestures = list(range(1, 35))
-    # Download all gestures and store them in the "gestures/" folder
+    if gestures == []:
+        gestures = list(range(1, 35)) # Download all gestures
     train_ui.download_gestures(gestures, out_path)
     list_file = list(filter(lambda f: f.endswith("json"), os.listdir(out_path)))[0]
     gestures_name = []
@@ -37,9 +37,11 @@ class ImageListbox(tk.Frame):
         self.num_columns = num_columns
         self.images_size = images_size
         self.gesture_folder = gesture_folder
-        self.selected_indices = []
+        self.selected_indices = {}
+        self.selection_tracker = [0]
         self.selected_gestures = []
         self.image_bg = "black"
+        self.select_color = "teal"
         self.create_widgets()
 
     def create_widgets(self):
@@ -74,17 +76,26 @@ class ImageListbox(tk.Frame):
         self.root.bind("<MouseWheel>", self.on_mousewheel)
 
         # Add images to the list
-        self.image_paths = get_all_gestures_from_libemg(self.gesture_folder)
+        self.image_paths = get_gestures_from_libemg(self.gesture_folder)
         self.images = []
         self.images_lbl = []
+        self.images_text_lbl = []
         for i, image_path in enumerate(self.image_paths):
             image = Image.open(image_path).resize(self.images_size)
             image = ImageTk.PhotoImage(image)
-            image_lbl = tk.Label(self.frame, image=image, bg=self.image_bg, borderwidth=5)
+            
+            image_lbl = tk.Label(self.frame, image=image, bg=self.image_bg, borderwidth=5, text="fadsf")
             image_lbl.grid(row=i // self.num_columns, column=i % self.num_columns, padx=5, pady=5)
+            image_file = os.path.basename(image_path)
+            image_file_lbl = tk.Label(self.frame, text=image_file)
+            image_file_lbl.grid(row=i // self.num_columns, column=i % self.num_columns, sticky="n")
+            img_tracker_lbl = tk.Label(self.frame, text="text", fg=self.select_color, font=("Arial", 22, "bold"))
+            img_tracker_lbl.grid(row=i // self.num_columns, column=i % self.num_columns, sticky="sw")
+            img_tracker_lbl.grid_remove()
             image_lbl.bind("<Button-1>", lambda event, index=i: self.on_select(index))
             image_lbl.configure(image=image)
             image_lbl.image = image
+            self.images_text_lbl.append(img_tracker_lbl)
             self.images.append(image)
             self.images_lbl.append(image_lbl)
 
@@ -96,14 +107,23 @@ class ImageListbox(tk.Frame):
         self.canvas.yview_scroll(-1*(event.delta//120), "units")
 
     def on_select(self, index):
-        if index in self.selected_indices:
-            self.selected_indices.remove(index)
+        if index in self.selected_indices.keys():
+            self.selection_tracker.append(self.selected_indices[index])
+            self.images_text_lbl[index]["text"] = ""
+            self.images_text_lbl[index].grid_remove()
+            self.selected_indices.pop(index)
             self.selected_gestures.remove(self.image_paths[index])
             self.images_lbl[index].config(bg=self.image_bg)
         else:
-            self.selected_indices.append(index)
-            self.selected_gestures.append(self.image_paths[index])
-            self.images_lbl[index].config(bg='blue')
+            current_tracker = min(self.selection_tracker)
+            self.images_text_lbl[index]["text"] = str(current_tracker)
+            self.selection_tracker.remove(current_tracker)
+            self.images_text_lbl[index].grid()
+            self.selected_indices[index] = current_tracker
+            self.selected_gestures.insert(current_tracker, self.image_paths[index])
+            self.images_lbl[index].config(bg=self.select_color)
+            if len(self.selection_tracker) == 0:
+                    self.selection_tracker.append(len(self.selected_indices))
 
     def on_continue(self):
         self.root.destroy()
@@ -380,7 +400,7 @@ if __name__ == "__main__":
     from emager_py.streamers import SerialStreamer
     from emager_py.utils.find_usb import find_psoc
 
-    imgbox = ImageListbox(num_columns=3)
+    imgbox = ImageListbox(images_size=(250,200), num_columns=3)
     selected_gestures = imgbox.start()
     print(f"Selected gestures: {selected_gestures}")
 

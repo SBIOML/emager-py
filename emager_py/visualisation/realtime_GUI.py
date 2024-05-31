@@ -9,35 +9,24 @@ import threading
 class RealTimeGestureUi(QWidget):
     labelChanged = pyqtSignal(int)  # Define a signal for changing labels
 
-    def __init__(self, nb_class):
+    def __init__(self, images:list):
         self.app = QApplication([])
 
         super().__init__()
 
         self.isRunning = True
-        self.nb_class = nb_class
+        self.images_path = images
         self.img_label = 0
         self.timer = QTimer(self)
         self.timer.timeout.connect(lambda: self.setImg(self.img_label))
 
-        current_file_path = os.path.abspath(__file__)
-        current_dir_path = os.path.dirname(current_file_path)
-        img_path = os.path.join(current_dir_path, "gestures_img")
-
-        if nb_class == 5:
-            self.imgPath = os.path.join(img_path, 'Fivegesture')
-            self.label = [0, 1, 2, 3, 4]
-        elif nb_class == 6:
-            self.imgPath = os.path.join(img_path, 'OBgesture')
-            self.label = [0, 1, 2, 3, 4, 5]
-
-        self.pixmaps = [QPixmap(self.imgPath + str(self.label[i]) + '.jpg') for i in self.label]
+        self.pixmaps = [QPixmap(img) for img in self.images_path]
         self.pixmaps = [pm.scaled(QSize(400, 400)) for pm in self.pixmaps]
         self.setWindowTitle('RealTime Gesture Recognition')
 
         layout = QGridLayout()
         self.gestureImage = QtWidgets.QLabel(self)  # alignment=Qt.AlignCenter
-        self.gestureImage.setPixmap(self.pixmaps[0])
+        self.gestureImage.setPixmap(self.pixmaps[self.img_label])
         layout.addWidget(self.gestureImage, 0, 0)
 
         self.setLayout(layout)
@@ -67,19 +56,23 @@ class RealTimeGestureUi(QWidget):
 if __name__ == '__main__':
     import random
     import time
+    from emager_py.visualisation.screen_guided_training import ImageListbox
 
-    gui = RealTimeGestureUi(5)
+    images = ImageListbox().start()
+
+    gui = RealTimeGestureUi(images)
 
     class label_class:
-        def __init__(self):
+        def __init__(self, n=5):
             self.label = 0
+            self.n = n
 
         def change_label(self):
             while gui.isRunning:
                 time.sleep(1)
-                self.label = random.randint(0, 4)
+                self.label = random.randint(0, self.n-1)
     
-    lc= label_class()
+    lc= label_class(n=len(images))
     label_class_thread_instance = threading.Thread(target=lc.change_label, args=())
     label_class_thread_instance.start()
 

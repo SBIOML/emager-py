@@ -4,6 +4,7 @@ from emager_py.visualisation import realtime_GUI
 from emager_py.utils.find_usb import find_psoc
 from emager_py.streamers import SerialStreamer
 from emager_py.realtime_prediction import HDEMG
+from emager_py.visualisation.screen_guided_training import ImageListbox
 
 # parameters
 
@@ -22,8 +23,10 @@ inputStreamer.open()
 # Create Class
 dataEMG = HDEMG(inputStreamer, model=model_path)
 
+images = ImageListbox().start()
+
 # Create GUI
-gui = realtime_GUI.RealTimeGestureUi(5)
+gui = realtime_GUI.RealTimeGestureUi(images)
 
 # register the callback
 def call_back_gui(data):
