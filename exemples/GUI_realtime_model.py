@@ -10,10 +10,7 @@ from emager_py.data_processings.data_generator import EmagerDataGenerator
 # parameters
 
 # Find path for the model
-current_dir = os.path.dirname(os.path.abspath(__file__))
-base_dir = "/home/etienne-michaud/dev/"
-model_path = os.path.join(base_dir, "repo_AI_felix", "models", "model_felix_with_transfer")
-model_path = "C:\GIT\EMaGer---GetStarted/realtime_documents\model_felix_full"
+model_path = "C:\GIT\EMaGer---GetStarted/realtime_documents\model_felix_full.h5"
 
 VIRTUAL = True
 BAUDRATE = 1500000
@@ -36,10 +33,10 @@ else:
 inputStreamer = SerialStreamer(PORT, BAUDRATE, VIRTUAL)
 inputStreamer.open()
 
-# Create Class
-dataEMG = HDEMG(inputStreamer, model=model_path)
-
 images = ImageListbox().start()
+
+# Create Class
+dataEMG = HDEMG(inputStreamer, model=model_path, nb_class=len(images))
 
 # Create GUI
 gui = realtime_GUI.RealTimeGestureUi(images)

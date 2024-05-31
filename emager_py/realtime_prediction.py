@@ -53,7 +53,7 @@ class HDEMG(object):
         self.final_pred = 0
 
         # Load NN model
-        self.model = tf.keras.models.load_model(model + ".h5",compile=False)
+        self.model = tf.keras.models.load_model(model ,compile=False)
         self.model.compile()
 
         # create all the deque buffers
@@ -151,8 +151,6 @@ class HDEMG(object):
                     count[n] = self.majority_buffer.count(n)
                     if count[n] > hysterisis[n]:
                         self.final_pred = n
-                        # now = datetime.datetime.now()
-                        # print(F"Final Pred: {self.final_pred} ({now.strftime('%H:%M:%S')})")
                 
             else:
                 time.sleep(0.002)
