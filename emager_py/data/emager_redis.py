@@ -146,6 +146,40 @@ class EmagerRedis:
     def set_pynq_params(self, transform: str):
         self.set(self.TRANSFORM_KEY, transform.encode())
 
+    def dump_labelled_to_numpy(self, poppush: bool = True):
+        """
+        Dump Redis samples and labels FIFOs to numpy arrays, compatible with the `emager_py.dataset` format.
+
+        Returns the dumped data as a numpy array of shape (n_labels, 1, n_samples, 64).
+        """
+        samples = {}
+
+        sample_batches_in_fifo = self.r.llen(self.SAMPLES_FIFO_KEY)
+        label_batches_in_fifo = self.r.llen(self.LABELS_FIFO_KEY)
+
+        log.info(
+            f"Sample batches in FIFO: {sample_batches_in_fifo}, labels: {label_batches_in_fifo}"
+        )
+
+        for i in range(min(sample_batches_in_fifo, label_batches_in_fifo)):
+            data, labels = None, None
+            if poppush:
+                data, labels = self.poppush_sample()
+            else:
+                data, labels = self.pop_sample(is_labelled=True)
+            label = str(labels[0])
+            if label not in samples:
+                log.info(f"Creating new label {label}")
+                samples[label] = np.ndarray((0, 64), dtype=np.int16)
+
+            samples[label] = np.vstack((samples[label], data.reshape((-1, 64))))
+
+        minlen = min([v.shape[0] for v in samples.values()])
+
+        return np.expand_dims(
+            np.array([samples[k][:minlen] for k in sorted(samples.keys())]), axis=1
+        )
+
     def __del__(self):
         self.r.close()
 

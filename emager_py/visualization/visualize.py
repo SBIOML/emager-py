@@ -86,9 +86,8 @@ class RealTimeOscilloscope:
     def update(self):
         # Fetch available data
         new_data = np.zeros((0, self.n_ch))
-        while len(new_data) < self.samples_per_refresh:
+        while True:
             tmp_data = self.streamer.read()
-            print(len(tmp_data))
             if len(tmp_data) == 0:
                 # no more samples ready
                 break
@@ -101,7 +100,9 @@ class RealTimeOscilloscope:
 
         self.tot_samples += nb_pts
         t = time.time()
-        log.info(f"Average fs={self.tot_samples/(t-self.t0):.3f}")
+        log.info(
+            f"(dt={t-self.timestamp:.3f}) Average fs={self.tot_samples/(t-self.t0):.3f}"
+        )
         self.timestamp = t
 
         for i, plot_item in enumerate(self.plots):

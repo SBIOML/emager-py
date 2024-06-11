@@ -3,17 +3,13 @@ from scipy import signal
 
 import emager_py.data.dataset as ed
 import emager_py.data.quantization as dq
+import emager_py.data.transforms as etrans
 import emager_py.utils as utils
-
-
-def filter_utility(data, fs=1000, Q=30, notch_freq=60):
-    b_notch, a_notch = signal.iirnotch(notch_freq, Q, fs)
-    return signal.filtfilt(b_notch, a_notch, data, axis=0)
 
 
 def extract_labels(data_array):
     """
-    Given a 4D data array, it will extract the data and labels from the array.
+    Given a 4D data array, extract the data and labels from the array.
 
     @param data_array of shape (labels, nb_exp, nb_samples, nb_channels)
 
@@ -37,6 +33,22 @@ def extract_labels(data_array):
                 * (label * nb_exp + experiment + 1)
             ] = label
     return X, y
+
+
+def extract_labels_and_roll(data, roll_range, v_dim=4, h_dim=16):
+    """
+    From raw 4D `data`, extract labels and apply ABSDA to the array, returning a tuple of (data, labels), with shapes (2D, 1D)
+    """
+    emg, labels = extract_labels(data)
+    emg_rolled = roll_data(emg, roll_range, v_dim, h_dim)
+    nb_rolled = int(emg_rolled.shape[0] // labels.shape[0])
+    labels_rolled = np.tile(labels, nb_rolled)
+    return emg_rolled, labels_rolled
+
+
+def filter_utility(data, fs=1000, Q=30, notch_freq=60):
+    b_notch, a_notch = signal.iirnotch(notch_freq, Q, fs)
+    return signal.filtfilt(b_notch, a_notch, data, axis=0)
 
 
 def preprocess_data(data_array, window_length=25, fs=1000, Q=30, notch_freq=60):
@@ -153,15 +165,102 @@ def compress_data(data, method="minmax"):
         raise ValueError("Invalid compression method")
 
 
-def extract_labels_and_roll(data, roll_range, v_dim=4, h_dim=16):
+def prepare_shuffled_datasets(
+    data, shuffle=True, split=0.8, absda="train", transform=None
+):
     """
-    From raw 4D `data`, extract labels and apply ABSDA to the array, returning a tuple of (data, labels), with shapes (2D, 1D)
+    Prepare a typical shuffled dataset with no special LOOCV.
+
+    Parameters:
+        - `data`: data array with shape (n_gestures, n_repetitions, n_samples, n_features)
+        - `split`: the ratio of training data to test data
+        - `absda` : "train", "test", "both", or "none", which data to apply ABSDA to
+        - `transform` : transformation to apply to the data, can be one of `emager_py.transforms` (str) or `callable`
+
+    Returns a tuple of ((data, labels), (left_out, left_out_labels)) which can directly be used to create a TensorDataset and DataLoader, for example
     """
-    emg, labels = extract_labels(data)
-    emg_rolled = roll_data(emg, roll_range)
-    nb_rolled = int(emg_rolled.shape[0] // labels.shape[0])
-    labels_rolled = np.tile(labels, nb_rolled)
-    return emg_rolled, labels_rolled
+
+    data, labels = extract_labels(data)
+
+    if transform is not None:
+        if isinstance(transform, str):
+            transform = etrans.transforms_lut[transform]
+        data = transform(data)
+        labels = labels[:: utils.get_transform_decimation(transform)]
+
+    data = np.hstack((data, labels.reshape(-1, 1)))
+
+    if shuffle:
+        np.random.shuffle(data)  # in-place
+
+    ds_len = len(data)
+    ds_split = int(ds_len * split)
+
+    train_ds = data[0:ds_split]
+    test_ds = data[ds_split:]
+
+    train_data, train_labels = np.hsplit(train_ds, [-1])
+    test_data, test_labels = np.hsplit(test_ds, [-1])
+
+    train_labels = np.reshape(train_labels, (-1,))
+    test_labels = np.reshape(test_labels, (-1,))
+
+    if absda == "train":
+        train_data = roll_data(train_data, 2)
+        nb_rolled = int(len(train_data) // len(train_labels))
+        train_labels = np.tile(train_labels, nb_rolled)
+    elif absda == "test":
+        test_data = roll_data(test_data, 2)
+        nb_rolled = int(len(test_data) // len(test_labels))
+        test_labels = np.tile(test_labels, nb_rolled)
+    elif absda == "both":
+        train_data = roll_data(train_data, 2)
+        nb_rolled = int(len(train_data) // len(train_labels))
+        train_labels = np.tile(train_labels, nb_rolled)
+        test_data = roll_data(test_data, 2)
+        test_labels = np.tile(test_labels, nb_rolled)
+
+    return (train_data, train_labels), (test_data, test_labels)
+
+
+def prepare_lnocv_datasets(
+    train_data: np.ndarray,
+    test_data: np.ndarray,
+    absda="train",
+    transform=None,
+):
+    """
+    Prepare the Leave-N-Out Cross Validation datasets.
+
+    Parameters:
+        - `train_data`, `test_data`: EMaGer-compatible `numpy` arrays
+        - `absda` : "train", "test", "both", or "none", which data to apply ABSDA to
+        - `transform` : transformation to apply to the data, can be one of `emager_py.transforms` (str) or `callable`
+
+    Returns a tuple of ((data, labels), (left_out, left_out_labels)) which can directly be used to create a TensorDataset and DataLoader, for example
+    """
+    if transform is not None:
+        if isinstance(transform, str):
+            transform = etrans.transforms_lut[transform]
+        train_data = transform(train_data)
+        test_data = transform(test_data)
+
+    data_labels = None
+    lo_labels = None
+    if absda == "train":
+        train_data, data_labels = extract_labels_and_roll(train_data, 2)
+        test_data, lo_labels = extract_labels(test_data)
+    elif absda == "test":
+        train_data, data_labels = extract_labels(train_data)
+        test_data, lo_labels = extract_labels_and_roll(test_data, 2)
+    elif absda == "both":
+        train_data, data_labels = extract_labels_and_roll(train_data, 2)
+        test_data, lo_labels = extract_labels_and_roll(test_data, 2)
+    else:
+        train_data, data_labels = extract_labels(train_data)
+        test_data, lo_labels = extract_labels(test_data)
+
+    return (train_data, data_labels), (test_data, lo_labels)
 
 
 def shuffle_dataset(data: np.ndarray, labels: np.ndarray, block_size: int):
@@ -184,3 +283,152 @@ def shuffle_dataset(data: np.ndarray, labels: np.ndarray, block_size: int):
     labels = np.reshape(shuf[:, :, -1], (-1,))
 
     return data, labels
+
+
+def generate_triplets(data: np.ndarray, labels: np.ndarray, n: int):
+    """
+    Generate triplets from a NC or NHW dataset and its labels.
+
+    Params:
+        - data : 2D array of samples
+        - labels : 1D array of labels
+        - n : number of triplets to generate per class
+
+    Returns a tuple of 3 datasets: (anchor, positive, negative), each with shape (n, 64)
+    """
+
+    anchor_ind = np.array([])
+    positive_ind = np.array([])
+    negative_ind = np.array([])
+
+    unique_len = len(labels) // len(np.unique(labels))
+    if 2 * n > unique_len:
+        n = unique_len // 2
+    for c in np.unique(labels):
+        c_ind = np.where(labels == c)[0]
+        c_ind = np.random.choice(c_ind, n * 2, replace=False)
+        nc_ind = np.where(labels != c)[0]
+        nc_ind = np.random.choice(nc_ind, n, replace=False)
+        anchor_ind = np.append(anchor_ind, c_ind[0:n])
+        positive_ind = np.append(positive_ind, c_ind[n:])
+        negative_ind = np.append(negative_ind, nc_ind)
+    anchor_dataset = data[anchor_ind.astype(int)]
+    positive_dataset = data[positive_ind.astype(int)]
+    negative_dataset = data[negative_ind.astype(int)]
+    return anchor_dataset, positive_dataset, negative_dataset
+
+
+def cosine_similarity(
+    embeddings: np.ndarray, class_embeddings: np.ndarray, closest_class=True
+) -> np.ndarray:
+    """
+    Cosine similarity between two embeddings.
+
+    embeddings has shape (batch_size, embedding_size)
+    class_embeddings has shape = (n_class, embedding_size)
+
+    If closest_class is True, returns a matrix of shape (batch_size,) where each element is the index of the closest class for each embedding in the batch.
+
+    Returns a matrix of shape (batch_size, n_class) where each row is the cosine similarity of the corresponding embedding with each class embedding
+
+    ## Example
+
+    >>> emb = np.random.rand(10, 64)
+    >>> class_emb = np.random.rand(6, 64)
+    >>> closest_class = cosine_similarity(emb, class_emb, closest_class=True)
+    >>> print(closest_class, closest_class.shape)
+    >>> class_similarity = cosine_similarity(emb, class_emb, closest_class=False)
+    >>> print(class_similarity, class_similarity.shape)
+    """
+    nemb = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
+    nembc = class_embeddings / np.linalg.norm(class_embeddings, axis=1, keepdims=True)
+
+    cos_sim = np.matmul(nemb, nembc.T)
+
+    if closest_class:
+        return np.argmax(cos_sim, axis=1)
+
+    return cos_sim
+
+
+def get_mean_embeddings(embeddings: np.ndarray, labels: np.ndarray, n_classes: int):
+    """
+    From a batch of embeddings and corresponding labels, generate mean embeddings for each class.
+
+    Params:
+        - embeddings : 2D array of embeddings : (N, W) where W is the embedding width
+        - labels : 1D array of labels : (N,)
+        - n_classes : number of target classes
+
+    Returns a 2D array of shape (n_classes, W) where each row is the mean embedding for each class.
+    """
+    ret = np.zeros((n_classes, *embeddings.shape[1:]))
+    for unique_y in np.unique(labels):
+        t = np.where(labels == unique_y)[0]
+        batch_sum = np.sum(embeddings[t], axis=0)
+        ret[unique_y] += batch_sum
+    return ret
+
+
+def get_n_shot_embeddings(
+    embeddings: np.ndarray, labels: np.ndarray, n_classes: int, n_shots: int
+):
+    """
+    From raw embeddings and corresponding labels, generate n-shot embeddings for each class.
+
+    Under the hood, this function samples randomly `n_shots` from each class and calls `get_mean_embeddings` to generate the mean embeddings for each class.
+
+    Params:
+        - embeddings : 2D array of embeddings : (N, W) where W is the embedding width
+        - labels : 1D array of labels : (N,)
+        - n_classes : number of target classes
+        - n_shots : number of shots per class
+
+    Returns a 2D array of shape (n_classes, W) where each row is the n-shot embedding for each class.
+    Any subsequent embedding can then be classified against this array, for example with `emager_py.data_processing.cosine_similarity`.
+    """
+    assert len(embeddings) == len(labels)
+    labels = labels.astype(np.uint8)
+
+    if n_shots == -1:
+        return get_mean_embeddings(embeddings, labels, n_classes)
+
+    to_sample = np.zeros((0,), dtype=np.uint8)
+    for k in np.unique(labels):
+        num_k = np.sum([labels == k])
+        to_sample_k = np.random.choice(
+            np.where(labels == k)[0],
+            min(n_shots, num_k),
+            replace=False,
+        )
+        to_sample = np.append(to_sample, to_sample_k)
+
+    return get_mean_embeddings(embeddings[to_sample], labels[to_sample], n_classes)
+
+
+if __name__ == "__main__":
+
+    utils.DATASETS_ROOT = "/Users/gabrielgagne/Documents/Datasets/"
+    data_array = ed.load_emager_data(
+        utils.DATASETS_ROOT + "EMAGER/", "000", "002", differential=False
+    )
+
+    data = prepare_shuffled_datasets(
+        data_array, split=0.8, absda="train", transform=etrans.default_processing
+    )
+
+    emb = np.random.rand(10, 64)
+    class_emb = np.random.rand(6, 64)
+    closest_class = cosine_similarity(emb, class_emb, closest_class=True)
+    print(closest_class, closest_class.shape)
+    class_similarity = cosine_similarity(emb, class_emb, closest_class=False)
+    print(class_similarity, class_similarity.shape)
+
+    train_emg, test_emg = ed.get_lnocv_datasets(
+        "/Users/gabrielgagne/Documents/Datasets/EMAGER/", 0, 1, 9
+    )
+    print(train_emg.shape, test_emg.shape)
+    emg, labels = extract_labels(test_emg)
+    print(emg.shape, labels.shape)
+    anchor, pos, neg = generate_triplets(emg, labels, 1000)
+    print(anchor.shape, pos.shape, neg.shape)

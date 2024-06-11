@@ -33,20 +33,28 @@ def step_insert_properties(model: ModelWrapper, cfg: build_cfg.DataflowBuildConf
 
 def step_insert_ip_into_bd(model: ModelWrapper, cfg: build_cfg.DataflowBuildConfig):
     """
-    Insert custom IP into the FINN shell Vivado project It inserts it right before `launch_runs -to_step write_bitstream impl_1`.
-    It requires the following keys in `CUSTOM_MODEL_PROPERTIES`:
+    Insert custom IP into the FINN shell Vivado project.
+    This build step modifies`finn.transformation.fpgadataflow.templates.custom_zynq_shell_template` at runtime by
+    deleting the line `make_wrapper ...` and inserting the TCL script in its place.
 
+    It requires the following keys in `custom_build_steps.CUSTOM_MODEL_PROPERTIES`:
         - custom_ip_path: Path to the custom IP to be inserted into the Vivado project, which must contain some Tcl code to insert the IP into Vivado.
         - custom_ip_<VAR>: Any other custom IP-related variables that need to be replaced in the custom IP file. In the file, they must be written as `$$VAR` placeholder.
 
-    The general workflow is to first generate the FINN block design, export it with `step_copy_finn_bd`, open it in Vivado and manually insert the custom IP.
-    Then, save the equivalent Tcl commands to insert the custom IP into the block design and save it to a file. Finally, set CUSTOM_MODEL_PROPERTIES["custom_ip_path"] = <path_to_tcl_script> and call this build step.
-    This build step runtime-modifies `finn.transformation.fpgadataflow.templates.custom_zynq_shell_template.splitlines()`.
+    The general workflow is to:
+        - Generate the FINN block design (finn's `step_synthesize_bitfile`) which by default creates the Vivado shell project in `/tmp/finn_dev_<user>/zynq_proj_<id>`
+        - Export it with `custom_build_steps.step_copy_finn_bd` OR manually copy the Vivado shell project
+        - Open the project in Vivado and manually insert your custom IP, noting the Tcl commands used to do so
+        - Set `CUSTOM_MODEL_PROPERTIES["custom_ip_path"] = <path_to_tcl_script>`
+        - Call this build step
     """
     zynq_shell_template: list[str] = templates.custom_zynq_shell_template.splitlines()
-    idx = zynq_shell_template.index("launch_runs -to_step write_bitstream impl_1")
-
-    print(idx)
+    # idx = zynq_shell_template.index("launch_runs -to_step write_bitstream impl_1")
+    for i, line in enumerate(zynq_shell_template):
+        if line.startswith("make_wrapper"):
+            idx = i
+            zynq_shell_template.pop(i)
+            break
 
     ip_to_insert: str = CUSTOM_MODEL_PROPERTIES["custom_ip_path"]
     with open(
@@ -75,6 +83,7 @@ def step_copy_finn_bd(model: ModelWrapper, cfg: build_cfg.DataflowBuildConfig):
     Copy the finn-generated Vivado project to the output directory.
     Must be called after `build_dataflow_steps.step_synthesize_bitfile`
     """
+    assert model.get_metadata_prop("vivado_pynq_proj")
     copytree(
         model.get_metadata_prop("vivado_pynq_proj"),
         cfg.output_dir + "vivado_zynq_proj/",
@@ -112,3 +121,59 @@ def step_deploy_to_pynq(model: ModelWrapper, cfg: build_cfg.DataflowBuildConfig)
     log.info(conn.run(f"rm {pynq_emg_path}/deploy.zip"))
     conn.close()
     return model
+
+
+def insert_custom_ip(ip_tcl_script: str, **kwargs):
+    """
+    Utility function to add the correct keys to add custom IP into the FINN shell project.
+
+    Parameters:
+        - ip_tcl_script: Path to the custom IP to be inserted into the Vivado project, which must contain some Tcl code to insert the IP into Vivado.
+        - kwargs: Variables that are to be substituted in the Tcl script before Vivado invocation. In the Tcl script, they must be written as `$$<VAR_NAME>` placeholders.
+            For example, if a Tcl script has a placeholder `$$MY_VAR`, then call this function with kwargs: MY_VAR='value'.
+
+    Returns the updated `CUSTOM_MODEL_PROPERTIES` dictionary.
+    """
+    CUSTOM_MODEL_PROPERTIES["custom_ip_path"] = ip_tcl_script
+    for key, value in kwargs.items():
+        CUSTOM_MODEL_PROPERTIES["custom_ip_" + key] = value
+    log.info(f"Updated CUSTOM_MODEL_PROPERTIES: {CUSTOM_MODEL_PROPERTIES}")
+    return CUSTOM_MODEL_PROPERTIES
+
+
+def default_finn_flow_export_bd() -> list:
+    """
+    Run the default FINN build flow and export the default FINN block design to the output directory after it is generated.
+    """
+    steps = build_cfg.default_build_dataflow_steps[:-2] + [
+        step_copy_finn_bd,
+    ]
+    log.info(f"FINN Build Steps: {steps}")
+    return steps
+
+
+def default_finn_flow_custom_ip() -> list:
+    """
+    Run the default FINN build flow with custom IP insertion, block design retrieval, and deployment to PYNQ.
+    """
+    steps = build_cfg.default_build_dataflow_steps[:-3] + [
+        step_insert_properties,
+        step_insert_ip_into_bd,
+        *build_cfg.default_build_dataflow_steps[-3:],
+        step_copy_finn_bd,
+        step_deploy_to_pynq,
+    ]
+    log.info(f"FINN Build Steps: {steps}")
+    return steps
+
+
+def finn_flow_only_deploy() -> list:
+    """
+    Only deploy the a pre-built deployment package to the PYNQ board.
+    """
+    steps = [
+        step_insert_properties,
+        step_deploy_to_pynq,
+    ]
+    log.info(f"FINN Build Steps: {steps}")
+    return steps

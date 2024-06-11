@@ -1,3 +1,7 @@
+"""
+Transforms wrap end-to-end processing for EMG signals and are used throughout `emager_py` to preprocess data before use.
+"""
+
 import numpy as np
 
 import emager_py.data.data_processing as dp

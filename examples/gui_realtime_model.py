@@ -1,6 +1,6 @@
 
 import os
-from emager_py.visualization import realtime_GUI
+from emager_py.visualization import realtime_gui
 from emager_py.utils.find_usb import find_psoc
 from emager_py.streamers import SerialStreamer
 from emager_py.realtime_prediction import EmagerRealtimePredictor
@@ -39,7 +39,7 @@ images = ImageListbox().start()
 dataEMG = EmagerRealtimePredictor(inputStreamer, model=model_path, nb_class=len(images))
 
 # Create GUI
-gui = realtime_GUI.RealTimeGestureUi(images)
+gui = realtime_gui.RealTimeGestureUi(images)
 
 # register the callback
 def call_back_gui(data):
