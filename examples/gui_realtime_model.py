@@ -1,11 +1,11 @@
 
 import os
-from emager_py.visualisation import realtime_GUI
+from emager_py.visualization import realtime_GUI
 from emager_py.utils.find_usb import find_psoc
 from emager_py.streamers import SerialStreamer
-from emager_py.realtime_prediction import HDEMG
-from emager_py.visualisation.screen_guided_training import ImageListbox
-from emager_py.data_processings.data_generator import EmagerDataGenerator
+from emager_py.realtime_prediction import EmagerRealtimePredictor
+from emager_py.visualization.screen_guided_training import ImageListbox
+from emager_py.data.data_generator import EmagerDataGenerator
 
 # parameters
 
@@ -36,7 +36,7 @@ inputStreamer.open()
 images = ImageListbox().start()
 
 # Create Class
-dataEMG = HDEMG(inputStreamer, model=model_path, nb_class=len(images))
+dataEMG = EmagerRealtimePredictor(inputStreamer, model=model_path, nb_class=len(images))
 
 # Create GUI
 gui = realtime_GUI.RealTimeGestureUi(images)

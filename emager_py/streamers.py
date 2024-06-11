@@ -8,7 +8,7 @@ import sys
 import logging as log
 from typing import Union
 
-import emager_py.data_processings.emager_redis as er
+import emager_py.data.emager_redis as er
 
 
 class EmagerStreamerInterface:

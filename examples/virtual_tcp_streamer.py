@@ -1,6 +1,6 @@
-from emager_py.data_processings.data_generator import EmagerDataGenerator
+from emager_py.data.data_generator import EmagerDataGenerator
 from emager_py.streamers import TcpStreamer
-import emager_py.data_processings.emager_redis as er
+import emager_py.data.emager_redis as er
 import numpy as np
 
 from emager_py.utils import utils

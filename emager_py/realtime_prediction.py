@@ -26,7 +26,7 @@ def preprocess_init():
     return b_combined, a_combined, zi
 
 
-class HDEMG(object):
+class EmagerRealtimePredictor(object):
     def __init__(self, inputStreamer:EmagerStreamerInterface, model, nb_class=5, window_size=30, 
                  batch_size=80, majority_size=250, sample_buffer_size=100, filter_buffer_size=100, 
                  input_buffer_size=200, prediction_buffer_size=200):

@@ -5,9 +5,9 @@ import logging as log
 
 from emager_py import streamers
 import emager_py.utils as utils
-import emager_py.data_processings.dataset as ed
-import emager_py.data_processings.data_processing as dp
-import emager_py.data_processings.emager_redis as er
+import emager_py.data.dataset as ed
+import emager_py.data.data_processing as dp
+import emager_py.data.emager_redis as er
 
 
 class EmagerDataGenerator:

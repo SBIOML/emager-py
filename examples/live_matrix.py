@@ -1,6 +1,6 @@
 from emager_py.streamers import SerialStreamer
 from emager_py.utils.find_usb import find_psoc
-from emager_py.visualisation.color_matrix import RealTimeMatrixPlot
+from emager_py.visualization.color_matrix import RealTimeMatrixPlot
 
 PORT = find_psoc()
 stream_client = SerialStreamer(PORT, 1500000)

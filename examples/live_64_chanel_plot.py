@@ -1,6 +1,6 @@
 import emager_py.utils.utils as eutils
 import emager_py.streamers as streamers
-from emager_py.visualisation.visualize import RealTimeOscilloscope
+from emager_py.visualization.visualize import RealTimeOscilloscope
 from emager_py.utils.find_usb import find_psoc
 
 eutils.set_logging()

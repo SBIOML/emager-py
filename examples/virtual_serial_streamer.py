@@ -2,7 +2,7 @@ import time
 import numpy as np
 from emager_py.streamers import TcpStreamer, SerialStreamer, socat_tcp_serial, socat_serial_serial
 import sys
-from emager_py.data_processings import data_generator as dg
+from emager_py.data import data_generator as dg
 import threading
 from emager_py.utils import utils
 

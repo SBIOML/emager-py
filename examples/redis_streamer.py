@@ -1,9 +1,9 @@
 import emager_py.finn.remote_operations as ro
-import emager_py.data_processings.emager_redis as er
+import emager_py.data.emager_redis as er
 import threading
 import time
-from emager_py.visualisation.visualize import RealTimeOscilloscope
-import emager_py.data_processings.data_generator as edg
+from emager_py.visualization.visualize import RealTimeOscilloscope
+import emager_py.data.data_generator as edg
 import emager_py.utils.utils as eutils
 from emager_py.streamers import TcpStreamer
 

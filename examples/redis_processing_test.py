@@ -1,4 +1,4 @@
-import emager_py.data_processings.emager_redis as er
+import emager_py.data.emager_redis as er
 import numpy as np
 import emager_py.finn.remote_operations as ro
 

@@ -1,8 +1,8 @@
 import time
 from emager_py.streamers import SerialStreamer
 from emager_py.utils.find_usb import find_psoc
-from emager_py.visualisation.screen_guided_training import ImageListbox, EmagerGuidedTraining
-from emager_py.data_processings import data_generator as dg
+from emager_py.visualization.screen_guided_training import ImageListbox, EmagerGuidedTraining
+from emager_py.data import data_generator as dg
 from emager_py.utils import utils
 
 utils.set_logging()

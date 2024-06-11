@@ -1,6 +1,6 @@
 import numpy as np
-import emager_py.data_processings.dataset as ed
-import emager_py.data_processings.data_processing as dp
+import emager_py.data.dataset as ed
+import emager_py.data.data_processing as dp
 
 
 def normalize_min_max_c(data):

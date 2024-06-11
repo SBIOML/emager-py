@@ -1,7 +1,7 @@
 import numpy as np
 
-import emager_py.data_processings.data_processing as dp
-import emager_py.data_processings.quantization as dq
+import emager_py.data.data_processing as dp
+import emager_py.data.quantization as dq
 
 
 def default_processing(data: np.ndarray) -> np.ndarray:

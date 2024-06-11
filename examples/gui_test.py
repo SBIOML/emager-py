@@ -1,7 +1,7 @@
 import random
 import time
-from emager_py.visualisation.screen_guided_training import ImageListbox
-from emager_py.visualisation.realtime_GUI import RealTimeGestureUi
+from emager_py.visualization.screen_guided_training import ImageListbox
+from emager_py.visualization.realtime_gui import RealTimeGestureUi
 import threading
 
 images = ImageListbox().start()
