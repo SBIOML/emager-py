@@ -1,34 +1,21 @@
 import time
-import numpy as np
 from emager_py.streamers import TcpStreamer, SerialStreamer, socat_tcp_serial, socat_serial_serial
 import sys
-from emager_py.data import data_generator as dg
 import threading
 from emager_py.utils import utils
+from emager_py.utils.find_usb import virtual_port
 
 utils.set_logging()
 
-# Default serial port (change as needed)
-PORT1 = '/dev/ttyV1' if sys.platform.startswith('linux') else 'COM12'
-PORT2 = '/dev/ttyV2' if sys.platform.startswith('linux') else 'COM13'
+BAUDRATE = 1500000
+DATASET_PATH = "C:\GIT\Datasets\EMAGER/"
 
-sample_rate = 1000 # Hz
-baudrate = 1500000
-datasetpath = "C:\GIT\Datasets\EMAGER"
-
-# If not on linux use VSPD to paired virtual serial ports
+# If not on linux use VSPD to paired virtual serial ports 
 # https://www.virtual-serial-port.org/
-if sys.platform.startswith('linux'):
-    proc = socat_serial_serial(PORT1, PORT2)
-    time.sleep(1)
+#  use port COM1 and COM2
+PORT = virtual_port(DATASET_PATH, BAUDRATE)
 
-server_streamer = SerialStreamer(PORT1, baudrate, True)
-client_streamer = SerialStreamer(PORT2, baudrate, True)
-
-data_generator = dg.EmagerDataGenerator(
-    server_streamer, datasetpath, sample_rate, 50, True 
-)
-emg, lab = data_generator.prepare_data("000", "001")
+client_streamer = SerialStreamer(PORT, BAUDRATE, True)
 
 def read_data_thread(stop_event: threading.Event):
     while not stop_event.is_set():
@@ -46,15 +33,10 @@ read_thread = threading.Thread(target=read_data_thread, args=(stop_thread,), dae
 try:
     read_thread.start()
     print("Data reader thread started")
-    generator_thread = data_generator.start()
-    print("Data generator thread started")
     while True:
         time.sleep(1)
 finally:
     print("Exiting...")
     stop_thread.set()
-    server_streamer.close()
-    client_streamer.close()
-    if sys.platform.startswith('linux'):
-        proc.kill()
+    print("Goodbye!")
     

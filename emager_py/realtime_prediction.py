@@ -192,7 +192,5 @@ class EmagerRealtimePredictor(object):
 
     def stop(self):
         self.stop_event.set()
-        for thread in self.threads:
-            thread.join()
 
 

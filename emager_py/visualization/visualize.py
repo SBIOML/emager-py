@@ -86,7 +86,7 @@ class RealTimeOscilloscope:
     def update(self):
         # Fetch available data
         new_data = np.zeros((0, self.n_ch))
-        while True:
+        while len(new_data) < self.samples_per_refresh:
             tmp_data = self.streamer.read()
             if len(tmp_data) == 0:
                 # no more samples ready

@@ -1,8 +1,6 @@
 import logging as log
 import numpy as np
 
-DATASETS_ROOT = "/home/gabrielgagne/Documents/Datasets/"
-
 
 def set_logging():
     FORMAT = "[%(filename)s:%(lineno)s - %(funcName)s] %(message)s"

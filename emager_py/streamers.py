@@ -7,6 +7,7 @@ import time
 import logging as log
 from typing import Union
 
+
 import emager_py.data.emager_redis as er
 
 

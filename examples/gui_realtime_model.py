@@ -1,7 +1,7 @@
 
 import os
 from emager_py.visualization import realtime_gui
-from emager_py.utils.find_usb import find_psoc
+from emager_py.utils.find_usb import find_psoc, virtual_port
 from emager_py.streamers import SerialStreamer
 from emager_py.realtime_prediction import EmagerRealtimePredictor
 from emager_py.visualization.screen_guided_training import ImageListbox
@@ -16,15 +16,8 @@ VIRTUAL = True
 BAUDRATE = 1500000
 
 if VIRTUAL:
-    PORT = "COM13" #virtual port
-    PORT2 = "COM12" #virtual port
-    datasetpath = "C:\GIT\Datasets\EMAGER"
-    generator_streamer = SerialStreamer(PORT2, BAUDRATE, VIRTUAL)
-    data_generator = EmagerDataGenerator(
-        generator_streamer, datasetpath, 1000, 50, True 
-    )
-    emg, lab = data_generator.prepare_data("000", "001")
-    thread = data_generator.start()
+    DATASET_PATH = "C:\GIT\Datasets\EMAGER/"
+    PORT = virtual_port(DATASET_PATH, BAUDRATE)
     print("Data generator thread started")
 else:
     PORT = find_psoc()
@@ -61,7 +54,6 @@ try:
 
 finally:
     dataEMG.stop()
-    inputStreamer.close()
     print("Goodbye!")
 
 

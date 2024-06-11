@@ -2,7 +2,7 @@ import numpy as np
 import fabric
 from invoke import Responder
 
-import emager_py.data_processings.emager_redis as er
+import emager_py.data.emager_redis as er
 
 DEFAULT_EMAGER_PYNQ_PATH = "/home/xilinx/workspace/emager-pynq/"
 
@@ -83,16 +83,3 @@ def sample_training_data(
     for _ in range(n_batches_per_it):
         r.push_fifo(r.LABELS_FIFO_KEY, np.array(gesture_id, dtype=np.uint8).tobytes())
     return n_batches_per_it
-
-
-if __name__ == "__main__":
-    conn = connect_to_pynq()
-    r = er.EmagerRedis("pynq")
-    r.clear_data()
-    r.set_rhd_sampler_params(
-        15, 300, 0, 1, DEFAULT_EMAGER_PYNQ_PATH + "/bitfile/finn-accel.bit"
-    )
-    r.set_sampling_params(1000, 50, 5000)
-    # sample_live_data(conn, 5000, 2, 1, DEFAULT_EMAGER_PYNQ_PATH, "pynq")
-    sample_training_data(conn, "pynq", 5000, DEFAULT_EMAGER_PYNQ_PATH, 1)
-    conn.close()

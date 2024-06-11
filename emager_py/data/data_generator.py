@@ -3,7 +3,7 @@ import time
 import threading
 import logging as log
 
-from emager_py import streamers
+from emager_py.streamers import	EmagerStreamerInterface
 import emager_py.utils as utils
 import emager_py.data.dataset as ed
 import emager_py.data.data_processing as dp
@@ -13,7 +13,7 @@ import emager_py.data.emager_redis as er
 class EmagerDataGenerator:
     def __init__(
         self,
-        streamer: streamers.EmagerStreamerInterface,
+        streamer: EmagerStreamerInterface,
         dataset_root: str,
         sampling_rate: int = 1000,
         batch_size: int = 1,

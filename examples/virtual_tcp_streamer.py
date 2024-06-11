@@ -9,7 +9,7 @@ utils.set_logging()
 batch = 10
 host = er.get_docker_redis_ip()
 
-datasetpath = "C:\GIT\Datasets\EMAGER"
+datasetpath = "C:\GIT\Datasets\EMAGER/"
 server_stream = TcpStreamer(4444, listen=False)
 dg = EmagerDataGenerator(
     server_stream, datasetpath , 1000, batch, True

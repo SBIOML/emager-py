@@ -35,7 +35,7 @@ class RealTimeMatrixPlot:
         matrix = self.streamer.read()
 
         if matrix is None or matrix.shape[0] == 0 or matrix.shape[1] == 0:
-            print("No data available")
+            print("No data available", matrix.shape)
             return self.matrix
 
         # Absolute matrix
