@@ -1,10 +1,10 @@
 import numpy as np
 from scipy import signal
 
-import emager_py.transforms as etrans
-import emager_py.dataset as ed
-import emager_py.quantization as dq
-import emager_py.utils as utils
+import emager_py.data.dataset as ed
+import emager_py.data.quantization as dq
+import emager_py.data.transforms as etrans
+import emager_py.utils.utils as utils
 
 
 def extract_labels(data_array):
@@ -404,31 +404,3 @@ def get_n_shot_embeddings(
         to_sample = np.append(to_sample, to_sample_k)
 
     return get_mean_embeddings(embeddings[to_sample], labels[to_sample], n_classes)
-
-
-if __name__ == "__main__":
-
-    utils.DATASETS_ROOT = "/Users/gabrielgagne/Documents/Datasets/"
-    data_array = ed.load_emager_data(
-        utils.DATASETS_ROOT + "EMAGER/", "000", "002", differential=False
-    )
-
-    data = prepare_shuffled_datasets(
-        data_array, split=0.8, absda="train", transform=etrans.default_processing
-    )
-
-    emb = np.random.rand(10, 64)
-    class_emb = np.random.rand(6, 64)
-    closest_class = cosine_similarity(emb, class_emb, closest_class=True)
-    print(closest_class, closest_class.shape)
-    class_similarity = cosine_similarity(emb, class_emb, closest_class=False)
-    print(class_similarity, class_similarity.shape)
-
-    train_emg, test_emg = ed.get_lnocv_datasets(
-        "/Users/gabrielgagne/Documents/Datasets/EMAGER/", 0, 1, 9
-    )
-    print(train_emg.shape, test_emg.shape)
-    emg, labels = extract_labels(test_emg)
-    print(emg.shape, labels.shape)
-    anchor, pos, neg = generate_triplets(emg, labels, 1000)
-    print(anchor.shape, pos.shape, neg.shape)

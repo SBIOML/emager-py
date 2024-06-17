@@ -32,17 +32,3 @@ def majority_vote(arr: np.ndarray, n_votes):
         q.append(i)
         ret = np.append(ret, q.vote())
     return ret
-
-
-if __name__ == "__main__":
-    import random as rd
-
-    labels = np.random.randint(0, 6, (10000,))
-    votes = majority_vote(labels, 10)
-    print(votes.shape)
-    q = MajorityVote(10)
-
-    for _ in range(100):
-        r = rd.randint(0, 6)
-        q.append(r)
-        print(r, q.vote())

@@ -4,8 +4,8 @@ Transforms wrap end-to-end processing for EMG signals and are used throughout `e
 
 import numpy as np
 
-import emager_py.data_processing as dp
-import emager_py.quantization as dq
+import emager_py.data.data_processing as dp
+import emager_py.data.quantization as dq
 
 
 def default_processing(data: np.ndarray) -> np.ndarray:

@@ -3,10 +3,10 @@ import logging as log
 import torch
 from torch.utils.data import DataLoader, TensorDataset, Dataset
 
-from emager_py import dataset as ed
-from emager_py import emager_redis as er
-from emager_py import data_processing as dp
-from emager_py import utils as eutils
+from emager_py.data import dataset as ed
+from emager_py.data import emager_redis as er
+from emager_py.data import data_processing as dp
+from emager_py.utils import utils as eutils
 
 
 class TripletEmager(Dataset):
@@ -191,45 +191,3 @@ def get_triplet_dataloaders(
     )
 
     return train_dl, val_dl, test_dl
-
-
-if __name__ == "__main__":
-    import emager_py.data_generator as edg
-    import emager_py.streamers as es
-    from emager_py.emager_redis import get_docker_redis_ip
-
-    train_dl, val_dl, test_dl = get_triplet_dataloaders(
-        "/home/gabrielgagne/Documents/Datasets/EMAGER/",
-        0,
-        2,
-        9,
-    )
-    print(len(train_dl.dataset), len(train_dl.dataset[0]))
-
-    train_dl, test_dl = get_lnocv_dataloaders(
-        "/home/gabrielgagne/Documents/Datasets/EMAGER/",
-        0,
-        [1, 2],
-        [0, 3, 4],
-    )
-    print(len(train_dl.dataset), len(test_dl.dataset))
-
-    _IP = get_docker_redis_ip()
-    eutils.set_logging()
-    dg = edg.EmagerDataGenerator(
-        es.RedisStreamer(_IP, True),
-        eutils.DATASETS_ROOT + "EMAGER/",
-        1000000,
-        10,
-        True,
-    )
-    dg.prepare_data("000", "001")
-    dg.serve_data(False)
-
-    train_dl, test_dl = get_redis_dataloaders(_IP, "train", "train", 0.8)
-
-    train_dl, test_dl = get_lnocv_dataloaders(
-        eutils.DATASETS_ROOT + "EMAGER/", "000", "002", 9
-    )
-
-    print(train_dl, test_dl)

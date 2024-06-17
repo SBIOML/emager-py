@@ -5,6 +5,7 @@ lib64
 pyvenv.cfg
 .*
 dist
+temp
 pdm.lock
 gestures
 lightning_logs/

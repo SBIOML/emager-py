@@ -30,12 +30,12 @@ Then, use functions from `emager_py.data_processing` to process the data, extrac
 """
 
 import numpy as np
+import emager_py.data.data_processing as dp
+import emager_py.data.quantization as dc
+import emager_py.data.transforms as etrans
+import emager_py.utils as eutils
 import logging as log
 import os
-
-import emager_py.data_processing as dp
-import emager_py.utils as eutils
-import emager_py.transforms as etrans
 
 _DATASET_TEMPLATE = {
     "subject": "%s/",
@@ -381,40 +381,3 @@ def get_lnocv_datasets(
     )
     return data, lo_data
 
-
-if __name__ == "__main__":
-    from emager_py import utils
-    from emager_py import transforms
-
-    utils.DATASETS_ROOT = "/home/gabrielgagne/Documents/Datasets/EMAGER/"
-
-    utils.set_logging()
-    print(get_subjects(utils.DATASETS_ROOT))
-    """
-    processed_path = load_process_save_dataset(
-        "/home/gabrielgagne/Documents/Datasets/EMAGER/",
-        "/home/gabrielgagne/Documents/Datasets/PEMAGER",
-        transforms.root_processing,
-        [0, 1, 2],
-        1,
-    )
-    """
-    processed_path = "/home/gabrielgagne/Documents/Datasets/PEMAGER/root_processing/"
-    load_emager_data(processed_path, 1, 1)
-    """
-    print(
-        get_subjects("/home/gabrielgagne/Documents/Datasets/EMAGER/"),
-        get_sessions(),
-        get_repetitions(),
-    )
-    """
-    d, lo = get_lnocv_datasets(utils.DATASETS_ROOT, 3, 1, 4)
-    d, lo = get_lnocv_datasets(utils.DATASETS_ROOT, 3, 1, [4, 5])
-    d, lo = get_lnocv_datasets(utils.DATASETS_ROOT, 3, [1, 2], [4, 5])
-    print(d.shape, lo.shape)
-    """
-    d, lo = get_intersession_cv_datasets(
-        utils.DATASETS_ROOT, 0
-    )
-    print(d.shape, lo.shape)
-    """

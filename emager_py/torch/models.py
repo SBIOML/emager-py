@@ -4,13 +4,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import lightning as L
-from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from brevitas import quant
 import brevitas.nn as qnn
 
 from sklearn.metrics import accuracy_score
 
-from emager_py import data_processing as dp
+from emager_py.data import data_processing as dp
 
 
 class EmagerCNN(L.LightningModule):
@@ -129,7 +128,7 @@ class EmagerCNN(L.LightningModule):
         y = self(x)
         loss = self.loss(y, y_true)
 
-        y = y.cpu().detach().numpy()
+        y = np.argmax(y.cpu().detach().numpy(), axis=1)
         y_true = y_true.cpu().detach().numpy()
 
         acc = accuracy_score(y_true, y, normalize=True)
@@ -167,8 +166,6 @@ class EmagerSCNN(L.LightningModule):
         self.bn2 = nn.BatchNorm2d(output_sizes[1])
         self.bn3 = nn.BatchNorm2d(output_sizes[2])
         self.flat = nn.Flatten()
-        self.dropout4 = nn.Dropout(0.5)
-        self.bn4 = nn.BatchNorm1d(output_sizes[3])
 
         if quantization < 0 or quantization >= 32:
             self.inp = nn.Identity()
@@ -178,7 +175,7 @@ class EmagerSCNN(L.LightningModule):
             self.relu2 = nn.ReLU()
             self.conv3 = nn.Conv2d(output_sizes[1], output_sizes[2], 5, padding=2)
             self.relu3 = nn.ReLU()
-            self.outp = nn.Identity()
+            self.fc4 = nn.Linear(output_sizes[2] * np.prod(self.input_shape))
         else:
             self.inp = qnn.QuantIdentity()
             self.conv1 = qnn.QuantConv2d(
@@ -217,8 +214,6 @@ class EmagerSCNN(L.LightningModule):
                 # input_quant=quant.Int8ActPerTensorFloat,
                 # output_quant=quant.Int8ActPerTensorFloat,
             )
-            self.relu4 = qnn.QuantReLU(input_quant=quant.Int8ActPerTensorFloat)
-            # self.relu4 = qnn.QuantIdentity(return_quant_tensor=True)
 
     def forward(self, x):
         out = torch.reshape(x, (-1, 1, *self.input_shape))
@@ -227,7 +222,7 @@ class EmagerSCNN(L.LightningModule):
         out = self.bn2(self.relu2(self.conv2(out)))
         out = self.bn3(self.relu3(self.conv3(out)))
         out = self.flat(out)
-        out = self.relu4(self.fc4(out))
+        out = self.fc4(out)
         return out
 
     def training_step(self, batch, batch_idx):
@@ -267,65 +262,3 @@ class EmagerSCNN(L.LightningModule):
 
     def set_target_embeddings(self, embeddings):
         self.embeddings = embeddings
-
-
-if __name__ == "__main__":
-    import emager_py.torch.datasets as etd
-    import emager_py.utils as eutils
-    import emager_py.transforms as etrans
-    import emager_py.torch.utils as etu
-    import emager_py.data_processing as dp
-
-    # eutils.set_logging()
-
-    USE_CNN = False
-    eutils.DATASETS_ROOT = "/Users/gabrielgagne/Documents/Datasets/"
-
-    if USE_CNN:
-        train, test = etd.get_lnocv_dataloaders(
-            eutils.DATASETS_ROOT + "EMAGER/",
-            "000",
-            "001",
-            9,
-            transform=etrans.default_processing,
-        )
-        val = test
-        model = EmagerCNN((4, 16), 6, -1)
-    else:
-        # using FC at the end kills performance??
-        train, val, test = etd.get_triplet_dataloaders(
-            eutils.DATASETS_ROOT + "EMAGER/",
-            0,
-            1,
-            9,
-            transform=etrans.default_processing,
-            absda="train",
-            val_batch=100,
-        )
-        """model = EmagerSCNN.load_from_checkpoint(
-            "lightning_logs/version_2/checkpoints/epoch=4-step=2110.ckpt",
-            input_shape=(4, 16),
-            quantization=-1,
-        )"""
-        model = EmagerSCNN((4, 16), -1)
-    trainer = L.Trainer(
-        max_epochs=5,
-        # accelerator="cpu",
-        callbacks=[EarlyStopping(monitor="val_loss", mode="min")],
-    )
-    # trainer.fit(model, train, val)
-    if isinstance(model, EmagerSCNN):
-        """
-        train, test = etd.get_loocv_dataloaders(
-            eutils.DATASETS_ROOT + "EMAGER/",
-            0,
-            1,
-            8,
-            transform=etrans.default_processing,
-            test_batch=100,
-        )"""
-        ret = etu.get_all_embeddings(model, test, model.device)
-        cemb = dp.get_n_shot_embeddings(*ret, 6, 10)
-        print(ret[0].shape, ret[1].shape)
-        model.set_target_embeddings(cemb)
-    trainer.test(model, test)

@@ -3,17 +3,17 @@ import time
 import threading
 import logging as log
 
-from emager_py import streamers
+from emager_py.streamers import	EmagerStreamerInterface
 import emager_py.utils as utils
-import emager_py.dataset as ed
-import emager_py.data_processing as dp
-import emager_py.emager_redis as er
+import emager_py.data.dataset as ed
+import emager_py.data.data_processing as dp
+import emager_py.data.emager_redis as er
 
 
 class EmagerDataGenerator:
     def __init__(
         self,
-        streamer: streamers.EmagerStreamerInterface,
+        streamer: EmagerStreamerInterface,
         dataset_root: str,
         sampling_rate: int = 1000,
         batch_size: int = 1,
@@ -80,6 +80,14 @@ class EmagerDataGenerator:
         )
         return self.emg, self.labels
 
+    def start(self):
+        """
+        Start serving data deamon thread.
+        """
+        t = threading.Thread(target=self.serve_data,  daemon=True)
+        t.start()
+        return t
+
     def serve_data(self, threaded: bool = False):
         """
         For loop over `self.generate_data` which pushes 1 data batch to `self.__redis` in a timely manner.
@@ -91,23 +99,18 @@ class EmagerDataGenerator:
         )
 
         self.__idx = 0
-        if self.__threaded and threaded:
-            t = threading.Thread(target=self.serve_data, args=(False,))
-            t.start()
-            return t
-        else:
-            since = time.perf_counter()
-            sleep_time = push_ts
-            true_ts = push_ts
-            while self.push_sample():
-                if self.__idx % 100 == 0:
-                    true_ts = (time.perf_counter() - since) / (self.__idx + 1)
-                    err_ts = push_ts - true_ts
-                    sleep_time += err_ts
-                    # log.info(f"true avg fs: {1/true_ts:.4f} Hz, {err_ts:.6f} s error")
-
-                if sleep_time > 0:
-                    time.sleep(sleep_time)
+        since = time.perf_counter()
+        sleep_time = push_ts
+        true_ts = push_ts
+        while self.push_sample():
+            if self.__idx % 100 == 0:
+                true_ts = (time.perf_counter() - since) / (self.__idx + 1)
+                err_ts = push_ts - true_ts
+                sleep_time += err_ts
+                # log.info(f"true avg fs: {1/true_ts:.4f} Hz, {err_ts:.6f} s error")
+                
+            if sleep_time > 0:
+                time.sleep(sleep_time)
 
     def push_sample(self):
         if self.__idx >= len(self.labels):
@@ -119,32 +122,3 @@ class EmagerDataGenerator:
 
     def __len__(self):
         return len(self.labels)
-
-
-if __name__ == "__main__":
-    utils.set_logging()
-
-    batch = 10
-    host = er.get_docker_redis_ip()
-    # host = "pynq"
-
-    # server_stream = streamers.RedisStreamer(host, True)
-    server_stream = streamers.TcpStreamer(4444, listen=False)
-    dg = EmagerDataGenerator(
-        server_stream, utils.DATASETS_ROOT + "EMAGER/", 1000, batch, True
-    )
-    emg, lab = dg.prepare_data("004", "001")
-    dg.serve_data(True)
-
-    print("Len of generated data: ", len(dg))
-    for i in range(len(lab)):
-        # data, labels = r.brpop_sample()
-        data, labels = server_stream.read()
-        batch = len(labels)
-        print(f"Received shape {data.shape}")
-        assert np.array_equal(data, emg[batch * i : batch * (i + 1)]), print(
-            "Data does not match."
-        )
-        assert np.array_equal(labels, lab[batch * i : batch * (i + 1)]), print(
-            labels, lab[batch * i : batch * (i + 1)]
-        )

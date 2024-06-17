@@ -8,13 +8,13 @@ from pyqtgraph.Qt import QtGui
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QTimer, Qt
 
-import emager_py.streamers as streamers
+from emager_py.streamers import EmagerStreamerInterface
 
 
 class RealTimeOscilloscope:
     def __init__(
         self,
-        streamer: streamers.EmagerStreamerInterface,
+        streamer: EmagerStreamerInterface,
         n_ch: int,
         signal_fs: float,
         accumulate_t: float,
@@ -86,7 +86,7 @@ class RealTimeOscilloscope:
     def update(self):
         # Fetch available data
         new_data = np.zeros((0, self.n_ch))
-        while True:
+        while len(new_data) < self.samples_per_refresh:
             tmp_data = self.streamer.read()
             if len(tmp_data) == 0:
                 # no more samples ready
@@ -113,57 +113,3 @@ class RealTimeOscilloscope:
 
     def run(self):
         self.app.exec()
-
-
-if __name__ == "__main__":
-    import emager_py.data_generator as edg
-    import emager_py.emager_redis as er
-    import emager_py.utils as eutils
-    import emager_py.finn.remote_operations as ro
-
-    eutils.set_logging()
-
-    GENERATE = False
-    FS = 1000
-    BATCH = 50
-    PORT = 12347
-    HOST = er.get_docker_redis_ip() if GENERATE else "pynq"
-
-    def generate_data():
-        # rs = streamers.RedisStreamer(HOST, False)
-        stream_server = streamers.TcpStreamer(PORT, "localhost", True)
-        dg = edg.EmagerDataGenerator(
-            stream_server,
-            "/home/gabrielgagne/Documents/git/emager-pytorch/data/EMAGER/",
-            sampling_rate=FS,
-            batch_size=BATCH,
-            shuffle=False,
-        )
-        dg.prepare_data("004", "001")
-        dg.serve_data()
-        print("Started serving data...")
-
-    if GENERATE:
-        threading.Thread(target=generate_data, daemon=True).start()
-    else:
-        r = er.EmagerRedis(HOST)
-        r.set_sampling_params(FS, BATCH, 1000000000)
-        r.set_rhd_sampler_params(
-            en_dsp=0,
-            # bitstream="/home/xilinx/workspace/rhd2164-driver/examples/python/pynq/bitfile/design_1.bit",
-            bitstream="/home/xilinx/workspace/emager-pynq/bitfile/finn-accel.bit",
-        )
-        r.clear_data()
-        c = ro.connect_to_pynq()
-        t = threading.Thread(
-            target=ro.run_remote_finn,
-            args=(c, ro.DEFAULT_EMAGER_PYNQ_PATH, "rhd_sampler"),
-        ).start()
-
-    time.sleep(1)
-
-    print("Starting client and oscilloscope...")
-    stream_client = streamers.RedisStreamer(HOST, False)
-    # stream_client = streamers.TcpStreamer(PORT, "localhost", False)
-    oscilloscope = RealTimeOscilloscope(stream_client, 64, FS, 3, 30)
-    oscilloscope.run()

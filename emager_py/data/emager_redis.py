@@ -218,22 +218,3 @@ def start_docker_redis():
     except sp.CalledProcessError as err:
         log.error(f"Could not start Docker Redis: {err}")
         return None
-
-
-if __name__ == "__main__":
-    import emager_py.finn.remote_operations as ro
-    import emager_py.utils as eutils
-
-    eutils.set_logging()
-
-    r = EmagerRedis("pynq")
-    r.clear_data()
-    r.set_sampling_params(100, 50, 500)
-    r.set_rhd_sampler_params(
-        20, 300, 0, 15, ro.DEFAULT_EMAGER_PYNQ_PATH + "/bitfile/finn-accel.bit"
-    )
-    for i in range(12):
-        labels = np.arange(6)
-        r.push_sample(np.random.randint(0, 100, (25, 64)), labels[i % len(labels)])
-    dumped = r.dump_labelled_to_numpy()
-    print(dumped.shape)

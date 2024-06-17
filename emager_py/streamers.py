@@ -7,7 +7,8 @@ import time
 import logging as log
 from typing import Union
 
-import emager_py.emager_redis as er
+
+import emager_py.data.emager_redis as er
 
 
 class EmagerStreamerInterface:
@@ -108,7 +109,7 @@ class SerialStreamer(EmagerStreamerInterface):
             time.sleep(2)
 
         self.virtual = virtual
-        self.ser = serial.Serial(port, baud)
+        self.ser = serial.Serial(port, baud, timeout=1)
         self.packet_size = 128
         self.ones_mask = np.ones(64, dtype=np.uint8)
         self.channel_map = (
@@ -123,21 +124,25 @@ class SerialStreamer(EmagerStreamerInterface):
         """
         Close serial port.
         """
-        self.ser.close()
+        if self.ser:
+            if self.ser.is_open:
+                self.ser.close()
 
     def open(self):
         """
         Open serial port.
         """
-        self.ser.open()
+        if self.ser:
+            if not self.ser.is_open:
+                self.ser.open()
 
-    def process_packet(self, data_packet, number_of_packet):
+    def process_packet(self, data_packet, number_of_packet, validate=True):
         valid_packets = []
         for i in range(number_of_packet):
             data_slice = data_packet[i * 128 : (i + 1) * 128]
             data_lsb = np.bitwise_and(data_slice[1::2], self.ones_mask)
             zero_indices = np.where(data_lsb == 0)[0]
-            if len(zero_indices) == 1:
+            if len(zero_indices) == 1 and validate:
                 offset = (2 * zero_indices[0] + 1) - 1
                 # Second LSB bytes
                 valid_packets.append(np.roll(data_slice, -offset))
@@ -149,19 +154,31 @@ class SerialStreamer(EmagerStreamerInterface):
 
         Returns a (n_samples, n_ch) array
         """
-        if self.virtual:
-            bytes_array = self.ser.read_all()
-            data_packet = np.frombuffer(bytes_array, dtype=np.uint16).reshape(-1, 64)
-            return data_packet
+        
+        self.open()
 
         bytes_available = self.ser.in_waiting
         bytes_to_read = bytes_available - (bytes_available % self.packet_size)
+        # Wait to have a complete data packet
+        while bytes_to_read < self.packet_size:
+            bytes_available = self.ser.in_waiting
+            bytes_to_read = bytes_available - (bytes_available % self.packet_size)
+            time.sleep(0.02)
+            
         samples_list = []
         if bytes_to_read > 0:
+            # Read the available bytes from the serial port
             raw_data_packet = self.ser.read(bytes_to_read)
+
+            if self.virtual:
+                data_packet = np.frombuffer(raw_data_packet, dtype=np.uint16).reshape(-1, 64)
+                return data_packet
+            
             data_packet = np.frombuffer(raw_data_packet, dtype=np.uint8)
             number_of_packet = int(len(data_packet) / 128)
-            processed_packets = self.process_packet(data_packet, number_of_packet)
+
+            # Process the data packet
+            processed_packets = self.process_packet(data_packet, number_of_packet, validate=(not self.virtual))
             for packet in processed_packets:
                 samples = np.asarray(struct.unpack(self.fmt, packet), dtype=np.int16)[
                     self.channel_map
@@ -314,32 +331,3 @@ def socat_serial_serial(serial_port_1: str, serial_port_2: str) -> sp.Popen:
     )
     time.sleep(3)
     return proc
-
-
-if __name__ == "__main__":
-
-    PORT = 2341
-    VSERIAL = "/tmp/tty0"
-    VSERIAL2 = "/tmp/tty1"
-    BAUD = 230400
-
-    proc = socat_tcp_serial(PORT, VSERIAL)
-    # proc = socat_serial_serial(VSERIAL, VSERIAL2)
-
-    server_streamer = TcpStreamer(PORT, "localhost", False)
-    # server_streamer = SerialStreamer(VSERIAL2, BAUD, True)
-
-    client_streamer = SerialStreamer(VSERIAL, BAUD, True)
-
-    for i in range(10):
-        print("-" * 20)
-        data = np.random.randint(0, 1024, (10, 64))
-        print("Sending data of size:", data.size)
-        server_streamer.write(data)
-        print("Data sent.")
-        ret = client_streamer.read()
-        print("Received data of size:", ret.size)
-
-        time.sleep(0.5)
-
-    proc.kill()
