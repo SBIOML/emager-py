@@ -128,7 +128,7 @@ class EmagerCNN(L.LightningModule):
         y = self(x)
         loss = self.loss(y, y_true)
 
-        y = y.cpu().detach().numpy()
+        y = np.argmax(y.cpu().detach().numpy(), axis=1)
         y_true = y_true.cpu().detach().numpy()
 
         acc = accuracy_score(y_true, y, normalize=True)
@@ -166,8 +166,6 @@ class EmagerSCNN(L.LightningModule):
         self.bn2 = nn.BatchNorm2d(output_sizes[1])
         self.bn3 = nn.BatchNorm2d(output_sizes[2])
         self.flat = nn.Flatten()
-        self.dropout4 = nn.Dropout(0.5)
-        self.bn4 = nn.BatchNorm1d(output_sizes[3])
 
         if quantization < 0 or quantization >= 32:
             self.inp = nn.Identity()
@@ -177,7 +175,7 @@ class EmagerSCNN(L.LightningModule):
             self.relu2 = nn.ReLU()
             self.conv3 = nn.Conv2d(output_sizes[1], output_sizes[2], 5, padding=2)
             self.relu3 = nn.ReLU()
-            self.outp = nn.Identity()
+            self.fc4 = nn.Linear(output_sizes[2] * np.prod(self.input_shape))
         else:
             self.inp = qnn.QuantIdentity()
             self.conv1 = qnn.QuantConv2d(
@@ -216,8 +214,6 @@ class EmagerSCNN(L.LightningModule):
                 # input_quant=quant.Int8ActPerTensorFloat,
                 # output_quant=quant.Int8ActPerTensorFloat,
             )
-            self.relu4 = qnn.QuantReLU(input_quant=quant.Int8ActPerTensorFloat)
-            # self.relu4 = qnn.QuantIdentity(return_quant_tensor=True)
 
     def forward(self, x):
         out = torch.reshape(x, (-1, 1, *self.input_shape))
@@ -226,7 +222,7 @@ class EmagerSCNN(L.LightningModule):
         out = self.bn2(self.relu2(self.conv2(out)))
         out = self.bn3(self.relu3(self.conv3(out)))
         out = self.flat(out)
-        out = self.relu4(self.fc4(out))
+        out = self.fc4(out)
         return out
 
     def training_step(self, batch, batch_idx):
