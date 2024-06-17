@@ -13,7 +13,6 @@ dependencies = [
     "pillow>=10.3.0",
     "sv-ttk>=2.6.0",
     "tensorflow>= 2.15",
-    "tensorflow-io-gcs-filesystem==0.31.0",
     "bleak>=0.22.1",
     "pyqtgraph>=0.13.3",
     "pyqt6>=6.6.1",
