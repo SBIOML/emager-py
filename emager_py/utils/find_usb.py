@@ -20,7 +20,7 @@ def find_pico():
     return find_port(0x2e8a, 0x0005)
 
 
-def virtual_port(datasetpath, baudrate, subjectId="000", sessionId="001") -> str:
+def virtual_port(datasetpath, baudrate=1500000, subjectId="000", sessionId="001") -> str:
     PORT1 = '/dev/ttyV1' if sys.platform.startswith('linux') else 'COM1'
     PORT2 = '/dev/ttyV2' if sys.platform.startswith('linux') else 'COM2'
 
@@ -29,8 +29,9 @@ def virtual_port(datasetpath, baudrate, subjectId="000", sessionId="001") -> str
         time.sleep(0.5)
     generator_streamer = SerialStreamer(PORT2, baudrate, True)
     data_generator = edg.EmagerDataGenerator(
-        generator_streamer, datasetpath, 1000, 100, True 
+        generator_streamer, datasetpath, 1000, 50, True 
     )
     emg, lab = data_generator.prepare_data(subjectId, sessionId)
+    print(f"Data prepared: {emg.shape}, {lab.shape}")
     thread = data_generator.start()
     return PORT1

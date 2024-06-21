@@ -9,3 +9,5 @@ temp
 pdm.lock
 gestures
 lightning_logs/
+data
+datasets

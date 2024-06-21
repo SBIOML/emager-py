@@ -156,15 +156,15 @@ class SerialStreamer(EmagerStreamerInterface):
         """
         
         self.open()
-
-        bytes_available = self.ser.in_waiting
-        bytes_to_read = bytes_available - (bytes_available % self.packet_size)
+        
         # Wait to have a complete data packet
+        bytes_to_read = 0
         while bytes_to_read < self.packet_size:
             bytes_available = self.ser.in_waiting
             bytes_to_read = bytes_available - (bytes_available % self.packet_size)
+            print(f"Waiting for data packet {bytes_to_read}, bytes available: {bytes_available}")
             time.sleep(0.02)
-            
+        
         samples_list = []
         if bytes_to_read > 0:
             # Read the available bytes from the serial port
@@ -187,6 +187,7 @@ class SerialStreamer(EmagerStreamerInterface):
         return np.array(samples_list)
 
     def write(self, data: np.ndarray, labels: Union[np.ndarray, None] = None):
+        # print(f"writing : fata {data.shape},  labels{labels.shape}")
         self.ser.write(data.astype(np.int16).tobytes())
         if labels is not None:
             self.ser.write(labels.astype(np.uint8).tobytes())

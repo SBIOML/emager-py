@@ -13,9 +13,9 @@ dependencies = [
     "pillow>=10.3.0",
     "sv-ttk>=2.6.0",
     "tensorflow>= 2.15",
-    "bleak>=0.22.1",
     "pyqtgraph>=0.13.3",
     "pyqt6>=6.6.1",
+    "libemg @ file:///C:/GIT/libemg-fork",
 ]
 requires-python = "<3.12,>=3.9"
 readme = "README.md"
