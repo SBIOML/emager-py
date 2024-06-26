@@ -1,18 +1,18 @@
 
-import os
 from emager_py.visualization import realtime_gui
 from emager_py.utils.find_usb import find_psoc, virtual_port
 from emager_py.streamers import SerialStreamer
 from emager_py.realtime_prediction import EmagerRealtimePredictor
 from emager_py.visualization.screen_guided_training import ImageListbox
-from emager_py.data.data_generator import EmagerDataGenerator
 
 # parameters
 
 # Find path for the model
-model_path = "C:\GIT\EMaGer---GetStarted/realtime_documents\model_felix_full.h5"
+# model_path = "C:\GIT\EMaGer---GetStarted/model_test_etienne.h5"
+# model_path = "C:\GIT\EMaGer---GetStarted/realtime_documents\model_felix_full.h5"
+model_path = "C:\GIT\emager-py\emager_torch_cnn_013"
 
-VIRTUAL = True
+VIRTUAL = False
 BAUDRATE = 1500000
 
 if VIRTUAL:

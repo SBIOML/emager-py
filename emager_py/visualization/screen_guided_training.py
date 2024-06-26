@@ -278,7 +278,7 @@ class EmagerGuidedTraining:
         self.userID = str(self.user_id_entry.get()).zfill(3)
         self.user_dir = os.path.join(self.data_dir, self.userID)
         self.sessionNb = str(self.session_entry.get()).zfill(3)
-        self.final_dir = os.path.join(self.user_dir, self.sessionNb)
+        self.final_dir = os.path.join(self.user_dir, "session_" + self.sessionNb)
         self.data_dir_lbl["text"] = self.final_dir
         return self.final_dir
 
@@ -288,7 +288,16 @@ class EmagerGuidedTraining:
         data = np.empty((0, 64))
         while (time.time()-start_time) < self.training_time:
             data_read = self.streamer.read()
-            data = np.append(data, data_read, axis=0)
+            # Vérifiez et ajustez les dimensions de data_read si nécessaire
+            if data_read.ndim == 1:
+                data_read = np.expand_dims(data_read, axis=0)
+            elif data_read.ndim == 0:
+                data_read = np.expand_dims(data_read, axis=(0, 1))
+            if data_read.size > 0:
+                data = np.append(data, data_read, axis=0)
+            else:
+                # Handle the case where data_read is empty, or log a warning
+                print("Warning: data_read is empty.")
 
         # Create directories
         self.get_folder()

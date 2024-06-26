@@ -12,9 +12,12 @@ import emager_py.torch.models as etm
 
 eutils.set_logging()
 
-DATASETS_PATH = "/Users/gabrielgagne/Documents/Datasets/EMAGER/"
-TRAIN_SUBJECT = 0
+DATASETS_PATH = "C:\GIT\Datasets\EMAGER/"
+TRAIN_SUBJECT = 1
 CROSS_SUBJECT = 1
+SESSION = 1
+NB_CLASSES = 6
+NB_REP = 10
 
 """
 emager-py relies builds on Lightning AI for its PyTorch integration, 
@@ -26,18 +29,25 @@ Refer to their documentation for more usage information.
 train, test = etd.get_lnocv_dataloaders(
     DATASETS_PATH,
     TRAIN_SUBJECT,
-    "001",
-    9,
+    SESSION,
+    NB_REP-1,
     transform=etrans.default_processing,
 )
 
 # Now, instantiate a mnodel (or load it from disk if you wish)
-model = etm.EmagerCNN((4, 16), 6, -1)
+model = etm.EmagerCNN((4, 16), NB_CLASSES, -1)
 
 # Finally, Lightning takes care of the rest!
-trainer = L.Trainer(max_epochs=5)
+trainer = L.Trainer(max_epochs=10)
 trainer.fit(model, train)
-trainer.test(model, test)
+res = trainer.test(model, test)
+
+print(f"Resultat: {res}")
+
+# Save the model
+PATH = f"./emager_torch_cnn_{TRAIN_SUBJECT}_{SESSION}"
+torch.save(model.state_dict(), PATH)
+print(f"Model saved at {PATH}")
 
 print("*" * 80)
 print("Now, the PyTorch model is trained and ready to be used in your experiment.")
@@ -54,3 +64,5 @@ preds = np.argmax(model(data).cpu().detach().numpy(), axis=1)
 xacc = accuracy_score(labels, preds)
 
 print(f"Cross-subject accuracy: {xacc*100:.2f}%")
+
+

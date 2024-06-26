@@ -13,7 +13,7 @@ print(f"Selected gestures: {selected_gestures}")
 
 
 BAUDRATE = 1500000
-VIRTUAL = True
+VIRTUAL = False
 
 if VIRTUAL:
     DATASET_PATH = "C:\GIT\Datasets\EMAGER/"
@@ -32,7 +32,7 @@ def my_cb(gesture):
 
 egt = EmagerGuidedTraining(
     streamer, selected_gestures,
-    resume_training_callback=my_cb,  callback_arg="gesture", reps=3, training_time=4,
+    resume_training_callback=my_cb,  callback_arg="gesture", reps=5, training_time=5,
 )
 print("Starting guided training...")
 egt.start()
