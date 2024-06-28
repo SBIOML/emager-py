@@ -4,10 +4,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import lightning as L
+from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from brevitas import quant
 import brevitas.nn as qnn
 
 from sklearn.metrics import accuracy_score
+from sklearn.preprocessing import StandardScaler
 
 from emager_py.data import data_processing as dp
 
@@ -25,6 +27,7 @@ class EmagerCNN(L.LightningModule):
         super().__init__()
 
         self.input_shape = input_shape
+        self.scaler = StandardScaler()
 
         output_sizes = [32, 32, 32, 256]
 
@@ -140,6 +143,41 @@ class EmagerCNN(L.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=1e-3)
         return optimizer
+    
+    # ----- LibEMG -----
+
+    def convert_input(self, x):
+        """Convert arbitrary input to a Torch tensor
+
+        Args:
+            x (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        x = self.scaler.transform(x)
+        if not isinstance(x, torch.Tensor):
+            x = torch.from_numpy(x)
+        return x.type(torch.float32).to(self.device)
+
+    def predict_proba(self, x):
+        x = self.convert_input(x)
+        with torch.no_grad():
+            return F.softmax(self(x), dim=1).cpu().detach().numpy()
+
+    def predict(self, x):
+        return np.argmax(self.predict_proba(x), axis=1)
+
+    def fit(self, train_dataloader, test_dataloader=None):
+        self.train()
+        trainer = L.Trainer(
+            max_epochs=10,
+            callbacks=[EarlyStopping(monitor="train_loss", min_delta=0.0005)],
+        )
+        trainer.fit(self, train_dataloader)
+
+        if test_dataloader is not None:
+            trainer.test(self, test_dataloader)
 
 
 class EmagerSCNN(L.LightningModule):

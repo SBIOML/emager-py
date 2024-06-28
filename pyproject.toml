@@ -9,7 +9,6 @@ dependencies = [
     "redis[hiredis]>=5.0.4",
     "pyserial>=3.5",
     "packaging>=24.0",
-    "libemg>=0.0.3",
     "pillow>=10.3.0",
     "sv-ttk>=2.6.0",
     "tensorflow>= 2.15",

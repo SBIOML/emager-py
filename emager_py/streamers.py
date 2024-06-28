@@ -162,7 +162,6 @@ class SerialStreamer(EmagerStreamerInterface):
         while bytes_to_read < self.packet_size:
             bytes_available = self.ser.in_waiting
             bytes_to_read = bytes_available - (bytes_available % self.packet_size)
-            print(f"Waiting for data packet {bytes_to_read}, bytes available: {bytes_available}")
             time.sleep(0.02)
         
         samples_list = []

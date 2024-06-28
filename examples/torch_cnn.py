@@ -12,9 +12,13 @@ import emager_py.torch.models as etm
 
 eutils.set_logging()
 
-DATASETS_PATH = "/Users/gabrielgagne/Documents/Datasets/EMAGER/"
+DATASETS_PATH = "C:\GIT\Datasets\EMAGER/"
 TRAIN_SUBJECT = 0
 CROSS_SUBJECT = 1
+SESSION = 1
+NUM_CLASSES = 6
+NUM_REPS = 10
+EPOCH = 5
 
 """
 emager-py relies builds on Lightning AI for its PyTorch integration, 
@@ -26,18 +30,22 @@ Refer to their documentation for more usage information.
 train, test = etd.get_lnocv_dataloaders(
     DATASETS_PATH,
     TRAIN_SUBJECT,
-    "001",
-    9,
+    SESSION,
+    NUM_REPS-1,
     transform=etrans.default_processing,
 )
 
 # Now, instantiate a mnodel (or load it from disk if you wish)
-model = etm.EmagerCNN((4, 16), 6, -1)
+model = etm.EmagerCNN((4, 16), NUM_CLASSES, -1)
 
 # Finally, Lightning takes care of the rest!
-trainer = L.Trainer(max_epochs=5)
+trainer = L.Trainer(max_epochs=EPOCH)
 trainer.fit(model, train)
 trainer.test(model, test)
+
+# Save the model
+model_path = f"emager_torch_cnn_{TRAIN_SUBJECT}_{SESSION}.pth"
+torch.save(model.state_dict(), model_path)
 
 print("*" * 80)
 print("Now, the PyTorch model is trained and ready to be used in your experiment.")
