@@ -11,6 +11,10 @@ if __name__ == "__main__":
     import time
     import numpy as np
 
+    import emager_py.utils.utils as eutils
+
+    eutils.set_logging()
+
 
     model_path = "emager_torch_cnn_0_1.pth"
     window_size=30
@@ -47,8 +51,14 @@ if __name__ == "__main__":
     classi.classifier = model.eval()
     print("Model loaded")
 
-    oclassi = OnlineEMGClassifier(classi, window_size, window_increment, odh, fg, std_out=True, smm=False)
+    oclassi = OnlineEMGClassifier(classi, window_size, window_increment, odh, fg, std_out=True, )
     oclassi.run(block=True)
     print("Online classifier started")
 
-  
+    try :
+        while True:
+            time.sleep(1)
+    except Exception as e:
+        print("Exception: ", e)
+    finally :
+        print("Exiting")

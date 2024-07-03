@@ -155,6 +155,7 @@ class EmagerCNN(L.LightningModule):
         Returns:
             _type_: _description_
         """
+        self.scaler.fit(x)
         x = self.scaler.transform(x)
         if not isinstance(x, torch.Tensor):
             x = torch.from_numpy(x)
