@@ -13,11 +13,12 @@ import emager_py.torch.models as etm
 eutils.set_logging()
 
 DATASETS_PATH = "C:\GIT\Datasets\EMAGER/"
-TRAIN_SUBJECT = 1
+TRAIN_SUBJECT = 13
 CROSS_SUBJECT = 1
-SESSION = 1
-NB_CLASSES = 6
+SESSION = 2
+NB_CLASSES = 5
 NB_REP = 10
+MAX_EPOCHS = 15
 
 """
 emager-py relies builds on Lightning AI for its PyTorch integration, 
@@ -38,7 +39,7 @@ train, test = etd.get_lnocv_dataloaders(
 model = etm.EmagerCNN((4, 16), NB_CLASSES, -1)
 
 # Finally, Lightning takes care of the rest!
-trainer = L.Trainer(max_epochs=10)
+trainer = L.Trainer(max_epochs=MAX_EPOCHS)
 trainer.fit(model, train)
 res = trainer.test(model, test)
 

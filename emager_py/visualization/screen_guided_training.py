@@ -289,10 +289,10 @@ class EmagerGuidedTraining:
         while (time.time()-start_time) < self.training_time:
             data_read = self.streamer.read()
             # Vérifiez et ajustez les dimensions de data_read si nécessaire
-            if data_read.ndim == 1:
-                data_read = np.expand_dims(data_read, axis=0)
-            elif data_read.ndim == 0:
-                data_read = np.expand_dims(data_read, axis=(0, 1))
+            # if data_read.ndim == 1:
+            #     data_read = np.expand_dims(data_read, axis=0)
+            # elif data_read.ndim == 0:
+            #     data_read = np.expand_dims(data_read, axis=(0, 1))
             if data_read.size > 0:
                 data = np.append(data, data_read, axis=0)
             else:
