@@ -41,11 +41,13 @@ model = etm.EmagerCNN((4, 16), NUM_CLASSES, -1)
 # Finally, Lightning takes care of the rest!
 trainer = L.Trainer(max_epochs=EPOCH)
 trainer.fit(model, train)
-trainer.test(model, test)
+res = trainer.test(model, test)
+print(f"Resultat: {res}")
 
 # Save the model
 model_path = f"emager_torch_cnn_{TRAIN_SUBJECT}_{SESSION}.pth"
 torch.save(model.state_dict(), model_path)
+print(f"Model saved at {model_path}")
 
 print("*" * 80)
 print("Now, the PyTorch model is trained and ready to be used in your experiment.")
@@ -62,3 +64,5 @@ preds = np.argmax(model(data).cpu().detach().numpy(), axis=1)
 xacc = accuracy_score(labels, preds)
 
 print(f"Cross-subject accuracy: {xacc*100:.2f}%")
+
+

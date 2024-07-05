@@ -1,9 +1,12 @@
 import numpy as np
 import time, threading, datetime
 import tensorflow as tf
+# import keras
 import collections
 from scipy import signal
 from emager_py.streamers import EmagerStreamerInterface
+import torch
+import emager_py.torch.models as etm
 
 def preprocess_init():
     # high pass (DC offset removal)
@@ -53,15 +56,23 @@ class EmagerRealtimePredictor(object):
         self.final_pred = 0
 
         # Load NN model
-        self.model = tf.keras.models.load_model(model ,compile=False)
-        self.model.compile()
+        
+        # self.model = tf.keras.models.load_model(model ,compile=False)
+        # self.model.compile()
+
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = etm.EmagerCNN((4, 16), nb_class, -1)
+        self.model.load_state_dict(torch.load(model))
+        self.model.to(self.device)
+        self.model.eval()
 
         # create all the deque buffers
         self.sample_buffer = collections.deque(maxlen=self.sample_buffer_size)
         self.filter_buffer = collections.deque(maxlen=self.filter_buffer_size)
         self.window_buffer = np.zeros((1, 64))
         self.input_buffer = collections.deque(maxlen=self.input_buffer_size)
-        self.batch_buffer = np.zeros((self.batch_size,4,16,1))
+        # self.batch_buffer = np.zeros((self.batch_size,4,16,1))
+        self.batch_buffer = [torch.zeros((4, 16, 1)).to(self.device) for _ in range(self.batch_size)]
         self.prediction_buffer = collections.deque(maxlen=self.prediction_buffer_size)
         self.majority_buffer = collections.deque(maxlen=self.majority_size)
 
@@ -110,7 +121,9 @@ class EmagerRealtimePredictor(object):
                     self.window_buffer = np.delete(self.window_buffer, 0, axis=0)
                 self.window_buffer = np.vstack((self.window_buffer, data))
                 data = np.mean(self.window_buffer, axis=0)
-                self.input_buffer.append(data)
+                data_tensor = torch.from_numpy(data).float().to(self.device)
+                # self.input_buffer.append(data)
+                self.input_buffer.append(data_tensor)
             else:
                 time.sleep(0.002)
 
@@ -127,8 +140,12 @@ class EmagerRealtimePredictor(object):
                 self.batch_buffer[i] = sample
                 i += 1
                 if i == self.batch_size:
-                    prediction = np.argmax(self.model.predict_on_batch(self.batch_buffer),axis=1)
-                    self.prediction_buffer.extend(prediction)
+                    # prediction = np.argmax(self.model.predict_on_batch(self.batch_buffer),axis=1)
+                    # self.prediction_buffer.extend(prediction)
+                    batch_tensor = torch.cat(list(self.batch_buffer), dim=0).to(self.device)
+                    with torch.no_grad():
+                        prediction = torch.argmax(self.model(batch_tensor), dim=1)
+                    self.prediction_buffer.extend(prediction.cpu().numpy())
                     i = 0
             else:
                 time.sleep(0.002)

@@ -16,7 +16,7 @@ dependencies = [
     "pyqt6>=6.6.1",
     "libemg @ file:///C:/GIT/libemg-fork",
 ]
-requires-python = "<3.12,>=3.9"
+requires-python = "<3.12,>=3.10"
 readme = "README.md"
 license = { text = "MIT" }
 
