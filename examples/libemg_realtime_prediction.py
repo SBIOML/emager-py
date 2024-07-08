@@ -16,12 +16,12 @@ if __name__ == "__main__":
     eutils.set_logging()
 
 
-    model_path = "emager_torch_cnn_0_1.pth"
+    model_path = "C:\GIT\Datasets\EMAGER\emager_torch_cnn_13_2"
     window_size=30
     window_increment=1
     majority_size=250
-    NUM_CLASSES = 6
-    VIRTUAL = False
+    NUM_CLASSES = 5
+    VIRTUAL = True
 
     # Get data port
     if VIRTUAL:
@@ -43,17 +43,25 @@ if __name__ == "__main__":
     fg = fe.get_feature_groups()["HTD"]
     print("Feature group: ", fg)
 
-    # Load model
+    # Verify model loading and state dict compatibility
     model = etm.EmagerCNN((4, 16), NUM_CLASSES, -1)
-    model.load_state_dict(torch.load(model_path))
+    try:
+        model.load_state_dict(torch.load(model_path))
+    except RuntimeError as e:
+        print(f"Error loading model: {e}")
+        # Handle error (e.g., exit or attempt a recovery)
+
     classi = EMGClassifier()
     classi.add_majority_vote(majority_size)
     classi.classifier = model.eval()
-    print("Model loaded")
 
-    oclassi = OnlineEMGClassifier(classi, window_size, window_increment, odh, fg, std_out=True, )
-    oclassi.run(block=True)
-    print("Online classifier started")
+    # Ensure OnlineEMGClassifier is correctly set up for data handling and inference
+    oclassi = OnlineEMGClassifier(classi, window_size, window_increment, odh, fg, std_out=True, smm=True)
+    try:
+        oclassi.run(block=True)
+    except Exception as e:
+        print(f"Error during classification: {e}")
+        # Handle specific classification errors here
 
     try :
         while True:

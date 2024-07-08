@@ -1,11 +1,12 @@
 if __name__ == "__main__":
     from libemg.data_handler import OnlineDataHandler
+    from libemg.datasets import OneSubjectMyoDataset
     from libemg.gui import GUI
     from libemg.streamers import emager_streamer
     import time
     from emager_py.utils.find_usb import virtual_port
 
-    VIRTUAL = True
+    VIRTUAL = False
 
     if VIRTUAL:
         DATASET_PATH = "C:\GIT\Datasets\EMAGER/"
@@ -23,8 +24,12 @@ if __name__ == "__main__":
 
     args = {
         "online_data_handler": odh,
-        "streamer":p
+        "streamer":p,
+        "media_folder": "media-test/",
+        "data_folder": "C:\GIT\Datasets\Libemg\Test1/",
+        "num_reps" : 5,
+        "rep_time":5,
     }
-    gui = GUI(args=args, debug=False, width=600, height=500)
-    gui.download_gestures([1,2,3,4,5], "gestures/", download_gifs=True)
+    gui = GUI(args=args, debug=False, width=900, height=800)
+    gui.download_gestures([2,3,10,14,18], "media-test/", download_gifs=False)
     gui.start_gui()
