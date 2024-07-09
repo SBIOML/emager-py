@@ -24,7 +24,7 @@ NUM_CLASSES = 5
 NUM_REPS = 5
 WINDOW_SIZE = 200
 WINDOW_INCREMENT = 10
-EPOCH = 5
+EPOCH = 10
 
 def prepare_data(dataset_folder):
         classes_values = [str(num) for num in range(NUM_CLASSES)]
@@ -90,11 +90,10 @@ test_dl = DataLoader(
 
 # Fit and test the model
 classifier = etm.EmagerCNN((4, 16), NUM_CLASSES, -1)
-classifier.fit_scaler(train_data)
 
 res = classifier.fit(train_dl, test_dl, max_epochs=EPOCH)
 acc = int(res[0]["test_acc"]*1000)
-print(f"Resultat: {res} f : {acc}/1000")
+print(f"Resultat: {res} accuracy : {acc}/1000")
 
 # Save the model
 model_path = f"{SAVE_PATH}libemg_torch_cnn_{SESSION}_{acc}.pth"

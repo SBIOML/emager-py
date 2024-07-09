@@ -17,7 +17,7 @@ if __name__ == "__main__":
     eutils.set_logging()
 
 
-    MODEL_PATH = "C:\GIT\Datasets\Libemg\Test3\libemg_torch_cnn_Test3_708.pth"
+    MODEL_PATH = "C:\GIT\Datasets\Libemg\Test3\libemg_torch_cnn_Test3_996.pth"
 
     NUM_CLASSES = 5
     WINDOW_SIZE=200

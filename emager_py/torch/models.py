@@ -9,7 +9,6 @@ from brevitas import quant
 import brevitas.nn as qnn
 
 from sklearn.metrics import accuracy_score
-from sklearn.preprocessing import StandardScaler
 
 from emager_py.data import data_processing as dp
 
@@ -27,7 +26,7 @@ class EmagerCNN(L.LightningModule):
         super().__init__()
 
         self.input_shape = input_shape
-        self.scaler = StandardScaler()
+        self.normalize = nn.BatchNorm1d(np.prod(input_shape))
 
         output_sizes = [32, 32, 32, 256]
 
@@ -99,8 +98,9 @@ class EmagerCNN(L.LightningModule):
             )
 
     def forward(self, x):
-        out = torch.reshape(x, (-1, 1, *self.input_shape))
-        out = self.inp(out)
+        x = self.normalize(x.view(x.size(0), -1))
+        x = x.view(-1, 1, *self.input_shape)
+        out = self.inp(x)
         out = self.bn1(self.relu1(self.conv1(out)))
         out = self.bn2(self.relu2(self.conv2(out)))
         out = self.bn3(self.relu3(self.conv3(out)))
@@ -143,9 +143,6 @@ class EmagerCNN(L.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=1e-3)
         return optimizer
-
-    def fit_scaler(self, data):
-        self.scaler.fit(data)
     
     # ----- LibEMG -----
 
@@ -158,8 +155,6 @@ class EmagerCNN(L.LightningModule):
         Returns:
             _type_: _description_
         """
-        self.fit_scaler(x)
-        x = self.scaler.transform(x)
         if not isinstance(x, torch.Tensor):
             x = torch.from_numpy(x)
         return x.type(torch.float32).to(self.device)
@@ -173,6 +168,7 @@ class EmagerCNN(L.LightningModule):
         return np.argmax(self.predict_proba(x), axis=1)
 
     def fit(self, train_dataloader, test_dataloader=None, max_epochs=10):
+
         self.train()
         trainer = L.Trainer(
             max_epochs=max_epochs,
