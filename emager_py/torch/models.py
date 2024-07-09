@@ -143,6 +143,9 @@ class EmagerCNN(L.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=1e-3)
         return optimizer
+
+    def fit_scaler(self, data):
+        self.scaler.fit(data)
     
     # ----- LibEMG -----
 
@@ -155,7 +158,7 @@ class EmagerCNN(L.LightningModule):
         Returns:
             _type_: _description_
         """
-        self.scaler.fit(x)
+        self.fit_scaler(x)
         x = self.scaler.transform(x)
         if not isinstance(x, torch.Tensor):
             x = torch.from_numpy(x)
@@ -169,16 +172,18 @@ class EmagerCNN(L.LightningModule):
     def predict(self, x):
         return np.argmax(self.predict_proba(x), axis=1)
 
-    def fit(self, train_dataloader, test_dataloader=None):
+    def fit(self, train_dataloader, test_dataloader=None, max_epochs=10):
         self.train()
         trainer = L.Trainer(
-            max_epochs=10,
+            max_epochs=max_epochs,
             callbacks=[EarlyStopping(monitor="train_loss", min_delta=0.0005)],
         )
         trainer.fit(self, train_dataloader)
-
+        res = None
         if test_dataloader is not None:
-            trainer.test(self, test_dataloader)
+            res = trainer.test(self, test_dataloader)
+
+        return res
 
 
 class EmagerSCNN(L.LightningModule):

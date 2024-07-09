@@ -1,14 +1,11 @@
 if __name__ == "__main__":
     from libemg.data_handler import OnlineDataHandler
-    from libemg.datasets import OneSubjectMyoDataset
-    from libemg.gui import GUI
     from libemg.streamers import emager_streamer
+    from libemg.filtering import Filter
     import time
     from emager_py.utils.find_usb import virtual_port
 
     VIRTUAL = False
-    SESSION = "Test3"
-    DATAFOLDER = f"C:\GIT\Datasets\Libemg\{SESSION}/"
 
     if VIRTUAL:
         DATASET_PATH = "C:\GIT\Datasets\EMAGER/"
@@ -22,16 +19,19 @@ if __name__ == "__main__":
     p, smi = emager_streamer(specified_port=PORT)
     print(f"Streamer created: process: {p}, smi : {smi}")
     odh = OnlineDataHandler(shared_memory_items=smi)
-    print("Data handler created")
 
-    args = {
-        "online_data_handler": odh,
-        "streamer":p,
-        "media_folder": "media-test/",
-        "data_folder": DATAFOLDER,
-        "num_reps" : 5,
-        "rep_time": 5,
-    }
-    gui = GUI(args=args, debug=False, width=900, height=800)
-    gui.download_gestures([2,3,10,14,18], "media-test/", download_gifs=False)
-    gui.start_gui()
+    filter = Filter(1000)
+    notch_filter_dictionary={ "name": "notch", "cutoff": 60, "bandwidth": 3}
+    filter.install_filters(notch_filter_dictionary)
+    bandpass_filter_dictionary={ "name":"bandpass", "cutoff": [20, 450], "order": 4}
+    filter.install_filters(bandpass_filter_dictionary)
+    odh.install_filter(filter)
+
+    try :
+        odh.visualize(num_samples=5000)
+        while True:
+            time.sleep(1)
+    except Exception as e:
+        print(e)
+    finally:
+        print("Exiting...")

@@ -8,6 +8,7 @@ dist
 temp
 pdm.lock
 gestures
+media*
 lightning_logs/
 data
 datasets
