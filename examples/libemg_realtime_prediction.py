@@ -21,12 +21,15 @@ from multiprocessing import Lock, Process
 def update_labels_process(gui:realtime_gui.RealTimeGestureUi, stop_event:threading.Event):
     smm = SharedMemoryManager()
     while not stop_event.is_set():
+        check = True
         for item in smm_items:
             tag, shape, dtype, lock = item
-            print(f"Creating variable: {item}")
             if not smm.find_variable(tag, shape, dtype, lock):
                 # wait for the variable to be created
-                continue
+                check = False
+                break
+        if not check:
+            continue
 
         # Read from shared memory
         classifier_output = smm.get_variable("classifier_output")
@@ -34,21 +37,21 @@ def update_labels_process(gui:realtime_gui.RealTimeGestureUi, stop_event:threadi
         # The most recent output is at index 0
         latest_output = classifier_output[0]
         prdeicted_class = int(latest_output[1])
+        print(f"Predicted class label change: {prdeicted_class}")
         gui.update_label(prdeicted_class)
-        time.sleep(0.1)
 
 if __name__ == "__main__":
 
     eutils.set_logging()
 
 
-    MODEL_PATH = "C:\GIT\Datasets\Libemg\Test3\libemg_torch_cnn_Test3_996.pth"
+    MODEL_PATH = "C:\GIT\Datasets\Libemg\Demo\libemg_torch_cnn_Demo_919.pth"
     MEDIA_PATH = "./media-test/"
 
     NUM_CLASSES = 5
     WINDOW_SIZE=200
     WINDOW_INCREMENT=10
-    MAJORITY_VOTE=5
+    MAJORITY_VOTE=10
 
     VIRTUAL = False
 
@@ -110,6 +113,7 @@ if __name__ == "__main__":
 
     try:
         oclassi.run(block=False)
+        time.sleep(2)
         updateLabelProcess.start()
         gui.run()
         
