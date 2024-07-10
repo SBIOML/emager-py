@@ -37,8 +37,8 @@ def update_labels_process(gui:realtime_gui.RealTimeGestureUi, stop_event:threadi
         # The most recent output is at index 0
         latest_output = classifier_output[0]
         prdeicted_class = int(latest_output[1])
-        print(f"Predicted class label change: {prdeicted_class}")
         gui.update_label(prdeicted_class)
+        time.sleep(0.1)
 
 if __name__ == "__main__":
 
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     NUM_CLASSES = 5
     WINDOW_SIZE=200
     WINDOW_INCREMENT=10
-    MAJORITY_VOTE=10
+    MAJORITY_VOTE=7
 
     VIRTUAL = False
 
