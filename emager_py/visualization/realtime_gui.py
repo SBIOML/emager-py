@@ -47,7 +47,7 @@ class RealTimeGestureUi(QWidget):
         self.labelText.setText(self.label_text)
         self.gestureImage.setPixmap(self.pixmaps[label])
 
-    def update_label(self, label):
+    def update_label(self, label:int):
         self.labelChanged.emit(label)
 
     def run(self):

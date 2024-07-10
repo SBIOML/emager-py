@@ -1,23 +1,49 @@
+
+import threading
+from libemg.data_handler import OnlineDataHandler
+from libemg.emg_classifier import EMGClassifier, OnlineEMGClassifier
+from libemg.feature_extractor import FeatureExtractor
+from libemg.streamers import emager_streamer
+from libemg.filtering import Filter
+from libemg.shared_memory_manager import SharedMemoryManager
+
+from emager_py.utils.find_usb import virtual_port
+import emager_py.torch.models as etm
+import emager_py.utils.utils as eutils
+from emager_py.visualization import realtime_gui
+
+import os
+import torch
+import time
+import numpy as np
+from multiprocessing import Lock, Process
+
+def update_labels_process(gui:realtime_gui.RealTimeGestureUi, stop_event:threading.Event):
+    smm = SharedMemoryManager()
+    while not stop_event.is_set():
+        for item in smm_items:
+            tag, shape, dtype, lock = item
+            print(f"Creating variable: {item}")
+            if not smm.find_variable(tag, shape, dtype, lock):
+                # wait for the variable to be created
+                continue
+
+        # Read from shared memory
+        classifier_output = smm.get_variable("classifier_output")
+        
+        # The most recent output is at index 0
+        latest_output = classifier_output[0]
+        prdeicted_class = int(latest_output[1])
+        gui.update_label(prdeicted_class)
+        time.sleep(0.1)
+
 if __name__ == "__main__":
-    from libemg.data_handler import OnlineDataHandler
-    from libemg.emg_classifier import EMGClassifier, OnlineEMGClassifier
-    from libemg.feature_extractor import FeatureExtractor
-    from libemg.streamers import emager_streamer
-    from libemg.filtering import Filter
-
-    from emager_py.utils.find_usb import virtual_port
-    import emager_py.torch.models as etm
-
-    import torch
-    import time
-    import numpy as np
-
-    import emager_py.utils.utils as eutils
 
     eutils.set_logging()
 
 
     MODEL_PATH = "C:\GIT\Datasets\Libemg\Test3\libemg_torch_cnn_Test3_996.pth"
+    MEDIA_PATH = "./media-test/"
 
     NUM_CLASSES = 5
     WINDOW_SIZE=200
@@ -66,17 +92,32 @@ if __name__ == "__main__":
     classi.classifier = model.eval()
 
     # Ensure OnlineEMGClassifier is correctly set up for data handling and inference
-    oclassi = OnlineEMGClassifier(classi, WINDOW_SIZE, WINDOW_INCREMENT, odh, fg, std_out=True, smm=False)
+    smm_items=[["classifier_output", (100,3), np.double, Lock()], #timestamp, class prediction, confidence
+                        ["classifier_input", (100,1+64), np.double, Lock()], # timestamp, <- features ->
+                        ["adapt_flag", (1,1), np.int32, Lock()],
+                        ["active_flag", (1,1), np.int8, Lock()]]
+    oclassi = OnlineEMGClassifier(classi, WINDOW_SIZE, WINDOW_INCREMENT, odh, fg, std_out=True, smm=True, smm_items=smm_items)
+
+
+    # Create GUI
+    files = [MEDIA_PATH + f for f in os.listdir(MEDIA_PATH) if os.path.isfile(os.path.join(MEDIA_PATH, f)) and (f.endswith('.png') or f.endswith('.jpg'))]
+    print("Files: ", files)
+    print("Creating GUI...")
+    gui = realtime_gui.RealTimeGestureUi(files)
+    
+    stop_event = threading.Event()
+    updateLabelProcess = threading.Thread(target=update_labels_process, args=(gui, stop_event))
+
     try:
-        oclassi.run(block=True)
+        oclassi.run(block=False)
+        updateLabelProcess.start()
+        gui.run()
+        
     except Exception as e:
         print(f"Error during classification: {e}")
-        # Handle specific classification errors here
 
-    try :
-        while True:
-            time.sleep(1)
-    except Exception as e:
-        print("Exception: ", e)
     finally :
+        stop_event.set()
+        oclassi.stop_running()
+
         print("Exiting")
