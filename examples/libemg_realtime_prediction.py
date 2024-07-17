@@ -21,7 +21,7 @@ from multiprocessing import Lock, Process
 eutils.set_logging()
 
 
-MODEL_PATH = "C:\GIT\Datasets\Libemg\Demo\libemg_torch_cnn_Demo_919.pth"
+MODEL_PATH = "C:\GIT\Datasets/Libemg/Demo/libemg_torch_cnn_Demo_917_24-07-17_15h20.pth"
 MEDIA_PATH = "./media-test/"
 
 NUM_CLASSES = 5
@@ -48,11 +48,15 @@ def update_labels_process(gui:realtime_gui.RealTimeGestureUi, smm_items:list, st
         classifier_output = smm.get_variable("classifier_output")
         # The most recent output is at index 0
         latest_output = classifier_output[0]
-        print(f"Latest output: {latest_output}")
+        output_data = {
+            "timestamp": np.double(latest_output[0]),
+            "prediction": int(latest_output[1]),
+            "probability": np.double(latest_output[2]),
+        }
+        print(f"Sending data: ({(output_data['prediction'])}) : {output_data} ")
 
+        gui.update_label(output_data["prediction"])
 
-        prdeicted_class = int(latest_output[1])
-        gui.update_label(prdeicted_class)
         time.sleep(0.1)
 
 def run():
@@ -101,7 +105,7 @@ def run():
                         ["classifier_input", (100,1+64), np.double, Lock()], # timestamp, <- features ->
                         ["adapt_flag", (1,1), np.int32, Lock()],
                         ["active_flag", (1,1), np.int8, Lock()]]
-    oclassi = OnlineEMGClassifier(classi, WINDOW_SIZE, WINDOW_INCREMENT, odh, fg, std_out=True, smm=True, smm_items=smm_items)
+    oclassi = OnlineEMGClassifier(classi, WINDOW_SIZE, WINDOW_INCREMENT, odh, fg, std_out=False, smm=True, smm_items=smm_items)
 
 
     # Create GUI
@@ -114,10 +118,15 @@ def run():
     updateLabelProcess = threading.Thread(target=update_labels_process, args=(gui, smm_items, stop_event))
 
     try:
+        print("Starting classification...")
         oclassi.run(block=False)
-        time.sleep(2)
+        print("Starting process thread...")
         updateLabelProcess.start()
+        print("Starting GUI...")
         gui.run()
+
+        # while True:
+        #     time.sleep(1)
         
     except Exception as e:
         print(f"Error during classification: {e}")

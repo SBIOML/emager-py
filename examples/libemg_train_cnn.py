@@ -8,6 +8,7 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 import emager_py.torch.models as etm
 import numpy as np
+import datetime
 import matplotlib.pyplot as plt
 
 
@@ -89,8 +90,10 @@ classifier = etm.EmagerCNN((4, 16), NUM_CLASSES, -1)
 res = classifier.fit(train_dl, test_dl, max_epochs=EPOCH)
 acc = int(res[0]["test_acc"]*1000)
 print(f"Resultat: {res} accuracy : {acc}/1000")
+current_time = datetime.datetime.now().strftime("%y-%m-%d_%Hh%M")
+print(f"Current time: {current_time}")
 
 # Save the model
-model_path = f"{SAVE_PATH}libemg_torch_cnn_{SESSION}_{acc}.pth"
+model_path = f"{SAVE_PATH}libemg_torch_cnn_{SESSION}_{acc}_{current_time}.pth"
 torch.save(classifier.state_dict(), model_path)
 print(f"Model saved at {model_path}")
