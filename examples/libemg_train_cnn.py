@@ -1,22 +1,18 @@
 
 from libemg.data_handler import OfflineDataHandler
-from libemg.datasets import OneSubjectMyoDataset
 from libemg.utils import make_regex
 from libemg.feature_extractor import FeatureExtractor
-from libemg.offline_metrics import OfflineMetrics
-from libemg.emg_classifier import EMGClassifier
 from libemg.filtering import Filter
 
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 import emager_py.torch.models as etm
-import lightning as L
 import numpy as np
 import matplotlib.pyplot as plt
 
 
 BASE_PATH = "C:\GIT\Datasets/Libemg/"
-SESSION = "Test3"
+SESSION = "Demo"
 DATASETS_PATH = f"{BASE_PATH}{SESSION}/"
 SAVE_PATH = f"{BASE_PATH}{SESSION}/"
 
@@ -67,13 +63,12 @@ print(f"Training windows: {train_windows.shape}, Testing windows: {test_windows.
 # Features extraction
 # Extract MAV since it's a commonly used pipeline for EMG
 fe = FeatureExtractor()
-
 train_data = fe.getMAVfeat(train_windows)
 train_labels = train_meta["classes"]
-
 test_data = fe.getMAVfeat(test_windows)
 test_labels = test_meta["classes"]
 
+# pause for visualize features
 features_data = {"key": train_data}
 fe.visualize_feature_space(features_data, "PCA", classes=train_labels)
 

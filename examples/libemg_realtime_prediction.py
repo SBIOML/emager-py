@@ -18,7 +18,20 @@ import time
 import numpy as np
 from multiprocessing import Lock, Process
 
-def update_labels_process(gui:realtime_gui.RealTimeGestureUi, stop_event:threading.Event):
+eutils.set_logging()
+
+
+MODEL_PATH = "C:\GIT\Datasets\Libemg\Demo\libemg_torch_cnn_Demo_919.pth"
+MEDIA_PATH = "./media-test/"
+
+NUM_CLASSES = 5
+WINDOW_SIZE=200
+WINDOW_INCREMENT=10
+MAJORITY_VOTE=7
+
+VIRTUAL = False
+
+def update_labels_process(gui:realtime_gui.RealTimeGestureUi, smm_items:list, stop_event:threading.Event):
     smm = SharedMemoryManager()
     while not stop_event.is_set():
         check = True
@@ -33,27 +46,16 @@ def update_labels_process(gui:realtime_gui.RealTimeGestureUi, stop_event:threadi
 
         # Read from shared memory
         classifier_output = smm.get_variable("classifier_output")
-        
         # The most recent output is at index 0
         latest_output = classifier_output[0]
+        print(f"Latest output: {latest_output}")
+
+
         prdeicted_class = int(latest_output[1])
         gui.update_label(prdeicted_class)
         time.sleep(0.1)
 
-if __name__ == "__main__":
-
-    eutils.set_logging()
-
-
-    MODEL_PATH = "C:\GIT\Datasets\Libemg\Demo\libemg_torch_cnn_Demo_919.pth"
-    MEDIA_PATH = "./media-test/"
-
-    NUM_CLASSES = 5
-    WINDOW_SIZE=200
-    WINDOW_INCREMENT=10
-    MAJORITY_VOTE=7
-
-    VIRTUAL = False
+def run():
 
     # Get data port
     if VIRTUAL:
@@ -109,7 +111,7 @@ if __name__ == "__main__":
     gui = realtime_gui.RealTimeGestureUi(files)
     
     stop_event = threading.Event()
-    updateLabelProcess = threading.Thread(target=update_labels_process, args=(gui, stop_event))
+    updateLabelProcess = threading.Thread(target=update_labels_process, args=(gui, smm_items, stop_event))
 
     try:
         oclassi.run(block=False)
@@ -125,3 +127,6 @@ if __name__ == "__main__":
         oclassi.stop_running()
 
         print("Exiting")
+
+if __name__ == "__main__":
+    run()

@@ -7,7 +7,7 @@ if __name__ == "__main__":
     from emager_py.utils.find_usb import virtual_port
 
     VIRTUAL = False
-    SESSION = "Test3"
+    SESSION = "Demo"
     DATAFOLDER = f"C:\GIT\Datasets\Libemg\{SESSION}/"
 
     if VIRTUAL:
