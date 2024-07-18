@@ -11,6 +11,7 @@ from emager_py.utils.find_usb import virtual_port
 import emager_py.torch.models as etm
 import emager_py.utils.utils as eutils
 from emager_py.visualization import realtime_gui
+import emager_py.utils.gestures_json as gjutils
 
 import os
 import torch
@@ -33,6 +34,9 @@ VIRTUAL = False
 
 def update_labels_process(gui:realtime_gui.RealTimeGestureUi, smm_items:list, stop_event:threading.Event):
     smm = SharedMemoryManager()
+    images = gui.images_path
+    gestures_dict = gjutils.get_gestures_dict(MEDIA_PATH)
+    
     while not stop_event.is_set():
         check = True
         for item in smm_items:
@@ -54,8 +58,10 @@ def update_labels_process(gui:realtime_gui.RealTimeGestureUi, smm_items:list, st
             "probability": np.double(latest_output[2]),
         }
         print(f"Sending data: ({(output_data['prediction'])}) : {output_data} ")
+        index = output_data["prediction"]
+        label = gjutils.get_label_from_index(gestures_dict, images, index)
 
-        gui.update_label(output_data["prediction"])
+        gui.update_label(label)
 
         time.sleep(0.1)
 
