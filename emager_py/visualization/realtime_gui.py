@@ -60,8 +60,9 @@ class RealTimeGestureUi(QWidget):
     def update_label(self, label:int):
         # Get images path and index
         self.images_name = self.gestures_dict[str(label)]
-        self.img_index = gjutils.get_index_from_label(self.gestures_dict, self.images_path, label)
+        self.img_index = gjutils.get_index_from_label(self.images_path, label, self.gestures_dict)
         if self.img_index is None:
+            self.img_index = 0
             return
         self.img_label = label
         self.labelChanged.emit(self.img_index)
@@ -70,7 +71,7 @@ class RealTimeGestureUi(QWidget):
         # Get images path and index
         self.img_index = index
         if self.gestures_dict is not None:
-            self.img_label = gjutils.get_label_from_index(self.gestures_dict, self.images_path, index)
+            self.img_label = gjutils.get_label_from_index(self.images_path, index, self.gestures_dict)
             self.images_name = self.gestures_dict[str(self.img_label)]
         else:
             self.images_name = self.images_path[index].split("/")[-1].split(".")[0]

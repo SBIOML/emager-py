@@ -3,6 +3,7 @@ import time
 from emager_py.visualization.screen_guided_training import ImageListbox
 from emager_py.visualization.realtime_gui import RealTimeGestureUi
 import threading
+import emager_py.utils.gestures_json as gjutils
 
 images = ImageListbox().start()
 
@@ -25,7 +26,8 @@ label_class_thread_instance.start()
 
 def label_thread(stop_event: threading.Event):
     while not stop_event.is_set():
-        gui.update_index(lc.label)
+        jlabel = gjutils.get_label_from_index(images, lc.label)
+        gui.update_label(jlabel)
         time.sleep(0.1)
 label_thread_instance = threading.Thread(target=label_thread, args=(stop_gui_event,))
 label_thread_instance.start()

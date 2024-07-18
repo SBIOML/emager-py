@@ -12,7 +12,12 @@ def get_images_folder(images):
     return images_folder
 
 def get_gestures_dict(images_folder):
-    list_file = list(filter(lambda f: f.endswith("json"), os.listdir(images_folder)))[0]
+    if isinstance(images_folder, list):
+        images_folder = get_images_folder(images_folder)
+    if isinstance(images_folder, str):
+        if not os.path.exists(images_folder):
+            raise FileNotFoundError(f"Folder not found: {images_folder}")
+        list_file = list(filter(lambda f: f.endswith("json"), os.listdir(images_folder)))[0]
     if not list_file:
         print(f"No JSON file found in {images_folder}")
         return None
@@ -20,30 +25,29 @@ def get_gestures_dict(images_folder):
         gestures_dict = json.load(f)
     return gestures_dict
 
-def get_index_from_label(gestures_dict, images:list, label:int):
+def get_index_from_label(images:list, label:int, gestures_dict=None):
     """
     Get the index from the label.
     """
     if gestures_dict is None:
-        raise ValueError("No gestures dictionary provided")
+        folder = get_images_folder(images)
+        gestures_dict = get_gestures_dict(folder)
     
     # Get images path and index
     images_name = gestures_dict[str(label)]
-    images_folder = get_images_folder(images)
-    image_path = images_folder + images_name + ".png"
-    if image_path in images:
-        img_index = images.index(image_path)
-    else:
-        print(f"Image not found: {image_path}")
-        return None
-    return img_index
+    for index, img in enumerate(images):
+        if images_name in img:
+            return index
+    print(f"Image not found: {images_name}")
+    return None
 
-def get_label_from_index(gestures_dict, images:list, index:int):
+def get_label_from_index(images:list, index:int, gestures_dict=None):
     """
     Get the label from the index.
     """
     if gestures_dict is None:
-        raise ValueError("No gestures dictionary provided")
+        folder = get_images_folder(images)
+        gestures_dict = get_gestures_dict(folder)
     
     # Get images path and index
     image_path = images[index]

@@ -59,7 +59,7 @@ def update_labels_process(gui:realtime_gui.RealTimeGestureUi, smm_items:list, st
         }
         print(f"Sending data: ({(output_data['prediction'])}) : {output_data} ")
         index = output_data["prediction"]
-        label = gjutils.get_label_from_index(gestures_dict, images, index)
+        label = gjutils.get_label_from_index(images, index, gestures_dict)
 
         gui.update_label(label)
 
