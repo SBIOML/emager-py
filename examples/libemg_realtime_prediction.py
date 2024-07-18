@@ -34,8 +34,8 @@ VIRTUAL = False
 
 def update_labels_process(gui:realtime_gui.RealTimeGestureUi, smm_items:list, stop_event:threading.Event):
     smm = SharedMemoryManager()
-    images = gui.images_path
     gestures_dict = gjutils.get_gestures_dict(MEDIA_PATH)
+    images = gjutils.get_images_list(MEDIA_PATH)
     
     while not stop_event.is_set():
         check = True
@@ -59,7 +59,7 @@ def update_labels_process(gui:realtime_gui.RealTimeGestureUi, smm_items:list, st
         }
         print(f"Sending data: ({(output_data['prediction'])}) : {output_data} ")
         index = output_data["prediction"]
-        label = gjutils.get_label_from_index(images, index, gestures_dict)
+        label = gjutils.get_label_from_index(index, images, gestures_dict)
 
         gui.update_label(label)
 
@@ -115,7 +115,7 @@ def run():
 
 
     # Create GUI
-    files = [MEDIA_PATH + f for f in os.listdir(MEDIA_PATH) if os.path.isfile(os.path.join(MEDIA_PATH, f)) and (f.endswith('.png') or f.endswith('.jpg'))]
+    files = gjutils.get_images_list(MEDIA_PATH)
     print("Files: ", files)
     print("Creating GUI...")
     gui = realtime_gui.RealTimeGestureUi(files)

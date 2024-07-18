@@ -26,8 +26,8 @@ label_class_thread_instance.start()
 
 def label_thread(stop_event: threading.Event):
     while not stop_event.is_set():
-        jlabel = gjutils.get_label_from_index(images, lc.label)
-        gui.update_label(jlabel)
+        jlabel = gjutils.get_label_from_index(lc.label, images)
+        gui.update_index(lc.label)
         time.sleep(0.1)
 label_thread_instance = threading.Thread(target=label_thread, args=(stop_gui_event,))
 label_thread_instance.start()
