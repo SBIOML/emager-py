@@ -22,7 +22,7 @@ from multiprocessing import Lock, Process
 eutils.set_logging()
 
 
-MODEL_PATH = "C:\GIT\Datasets/Libemg/Demo/libemg_torch_cnn_Demo_917_24-07-17_15h20.pth"
+MODEL_PATH = "C:\GIT\Datasets/Libemg/Demo/libemg_torch_cnn_Demo_904_24-07-19_13h14.pth"
 MEDIA_PATH = "./media-test/"
 
 NUM_CLASSES = 5
@@ -63,7 +63,7 @@ def update_labels_process(gui:realtime_gui.RealTimeGestureUi, smm_items:list, st
 
         gui.update_label(label)
 
-        time.sleep(0.1)
+        time.sleep(0.45)
 
 def run():
 

@@ -6,7 +6,7 @@ if __name__ == "__main__":
     from emager_py.utils.find_usb import virtual_port
 
     VIRTUAL = False
-    FILTER = True
+    FILTER = False
 
     if VIRTUAL:
         DATASET_PATH = "C:\GIT\Datasets\EMAGER/"
