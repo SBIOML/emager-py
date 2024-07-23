@@ -54,15 +54,15 @@ print("Now, the PyTorch model is trained and ready to be used in your experiment
 print("In this case, let's try to evaluate it on a different subject.")
 print("*" * 80)
 
-# Let's test on another subject
-data = ed.load_emager_data(DATASETS_PATH, CROSS_SUBJECT, 1)
-processed = etrans.default_processing(data)
-data, labels = edp.extract_labels(processed)
+# # Let's test on another subject
+# data = ed.load_emager_data(DATASETS_PATH, CROSS_SUBJECT, 1)
+# processed = etrans.default_processing(data)
+# data, labels = edp.extract_labels(processed)
 
-data = torch.from_numpy(data).float()
-preds = np.argmax(model(data).cpu().detach().numpy(), axis=1)
-xacc = accuracy_score(labels, preds)
+# data = torch.from_numpy(data).float()
+# preds = np.argmax(model(data).cpu().detach().numpy(), axis=1)
+# xacc = accuracy_score(labels, preds)
 
-print(f"Cross-subject accuracy: {xacc*100:.2f}%")
+# print(f"Cross-subject accuracy: {xacc*100:.2f}%")
 
 

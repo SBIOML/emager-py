@@ -11,11 +11,11 @@ CHANNELS = 64
 REFRESH_RATE = 30
 ACCUMULATION = 3
 
-VIRTUAL = False
+VIRTUAL = True
 
 if VIRTUAL:
     DATASET_PATH = "C:\GIT\Datasets\EMAGER/"
-    PORT = virtual_port(DATASET_PATH, BAUDRATE)
+    PORT = virtual_port(DATASET_PATH, BAUDRATE, subjectId="013", sessionId="002")
     print("Data generator thread started")
 else:
     PORT = find_psoc()
