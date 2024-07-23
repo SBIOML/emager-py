@@ -26,6 +26,7 @@ class BLEDevice:
     def disconnect(self):
         loop = asyncio.get_event_loop()
         loop.run_until_complete(self.client.disconnect())
+        print(f"Disconnected from {self.address}")
         self.client = None
 
     def read(self, service_uuid, char_uuid):

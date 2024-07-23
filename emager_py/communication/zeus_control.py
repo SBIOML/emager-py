@@ -27,6 +27,9 @@ class ZeusControl:
         if self.device:
             self.device.stop_notify(CHAR_UART_TX)
             self.device.disconnect()
+        self.device = None
+        print("Disconnected ZeusHand")
+
 
     def _read_data_packet(self, packet):
         if len(packet) < 8:
@@ -53,16 +56,17 @@ class ZeusControl:
         amber_spp_header = bytes([0x01])
         frame_header = bytes([0xA5, 0x5A])
         frame_type_byte = bytes([frame_type])
+        frame_data_bytes = bytes(frame_data)
         
         # Combine frame type and frame data for checksum calculation
-        data_for_crc = frame_type_byte + frame_data
+        data_for_crc = frame_type_byte + frame_data_bytes
         
         # Calculate checksum using the CRC32 instance
         checksum = self.crc32.soft_crc32_from_buffer(data_for_crc)
         checksum_bytes = checksum.to_bytes(4, byteorder='big')
         
         # Construct the packet
-        packet = amber_spp_header + frame_header + checksum_bytes + frame_type_byte + frame_data
+        packet = amber_spp_header + frame_header + checksum_bytes + frame_type_byte + frame_data_bytes
         
         return packet
     
@@ -77,14 +81,14 @@ class ZeusControl:
         value = b''
         if self.device:
             value = self.device.read(SERVICE_UART, CHAR_UART_TX)
+            print(f"Reading Received: {value}")
+            # formatted_hex = ' '.join(f'{byte:02x}' for byte in memoryview(value))
+            # print(f"UART TX: {formatted_hex} \n --> {value.decode()}")
             frame_type, frame_data, status = self._read_data_packet(value)
             if status == "Success":
                 print(f"Reading Received frame type: {frame_type}, frame data: {frame_data}")
             else:
                 print(f"Reading Error: {status}")
-
-            formatted_hex = ' '.join(f'{byte:02x}' for byte in memoryview(value))
-            print(f"UART TX: {formatted_hex} \n --> {value.decode()}")
 
     def send_data(self, data, data_id=None):
         if self.device:
@@ -136,6 +140,9 @@ if __name__ == "__main__":
     time.sleep(5)
     comm.send_gesture(6)
     time.sleep(5)
+    while True:
+        comm.read_data()
+        time.sleep(5)
     comm.disconnect()
 
     print("Done")
