@@ -1,5 +1,3 @@
-
-import threading
 from libemg.data_handler import OnlineDataHandler
 from libemg.emg_classifier import EMGClassifier, OnlineEMGClassifier
 from libemg.feature_extractor import FeatureExtractor
@@ -7,37 +5,40 @@ from libemg.streamers import emager_streamer
 from libemg.filtering import Filter
 from libemg.shared_memory_manager import SharedMemoryManager
 
-from emager_py.utils.find_usb import *
+from emager_py.utils.find_usb import virtual_port
 import emager_py.torch.models as etm
 import emager_py.utils.utils as eutils
 from emager_py.visualization import realtime_gui
 import emager_py.utils.gestures_json as gjutils
+from emager_py.control.smart_hand_control import SmartHandControl
+from emager_py.control.zeus_control import ZeusControl
 
 import os
 import torch
 import time
+from multiprocessing.connection import Connection
+from multiprocessing import Lock, Process, Pipe
 import numpy as np
-from multiprocessing import Lock, Process
+import threading
+
 
 eutils.set_logging()
 
-
-MODEL_PATH = "C:\GIT\Datasets/Libemg/Demo/libemg_torch_cnn_Demo_962_24-07-23_15h11.pth"
-MEDIA_PATH = "./media-test/"
+MODEL_PATH = "C:\GIT\Datasets/Libemg/Demo/libemg_torch_cnn_Demo_905_24-07-25_16h44.pth"
+MEDIA_PATH = "C:\GIT\emager-py\media-test/"
 
 NUM_CLASSES = 5
 WINDOW_SIZE=200
 WINDOW_INCREMENT=10
 MAJORITY_VOTE=7
-SAMPLING = 1007
+SAMPLING=1007
 
-VIRTUAL = True
+VIRTUAL = False
 
-def update_labels_process(gui:realtime_gui.RealTimeGestureUi, smm_items:list, stop_event:threading.Event):
+
+# PREDICTOR
+def update_labels_process(gui:realtime_gui.RealTimeGestureUi, smm_items:list, stop_event:threading.Event, conn:Connection=None):
     smm = SharedMemoryManager()
-    gestures_dict = gjutils.get_gestures_dict(MEDIA_PATH)
-    images = gjutils.get_images_list(MEDIA_PATH)
-    
     while not stop_event.is_set():
         check = True
         for item in smm_items:
@@ -51,6 +52,7 @@ def update_labels_process(gui:realtime_gui.RealTimeGestureUi, smm_items:list, st
 
         # Read from shared memory
         classifier_output = smm.get_variable("classifier_output")
+        
         # The most recent output is at index 0
         latest_output = classifier_output[0]
         output_data = {
@@ -59,21 +61,21 @@ def update_labels_process(gui:realtime_gui.RealTimeGestureUi, smm_items:list, st
             "probability": np.double(latest_output[2]),
         }
         print(f"Sending data: ({(output_data['prediction'])}) : {output_data} ")
-        index = output_data["prediction"]
-        label = gjutils.get_label_from_index(index, images, gestures_dict)
 
-        gui.update_label(label)
+        gui.update_index(output_data["prediction"])
+
+        if conn is not None:
+            print(" "*80,"... sending data ...")
+            conn.send(output_data)
 
         time.sleep(0.45)
 
-def run():
+def run_predicator(conn: Connection=None):
 
     # Get data port
     if VIRTUAL:
-        DATASET_PATH = "C:\GIT\Datasets\Libemg\Demo/"
-        CLASSES = 5
-        REPS = 5
-        PORT = virtual_port_libemg_v2(SAMPLING, DATASET_PATH, CLASSES, REPS)
+        DATASET_PATH = "C:\GIT\Datasets\EMAGER/"
+        PORT = virtual_port(DATASET_PATH)
         print("Data generator thread started")
         time.sleep(3)
     else:
@@ -114,37 +116,115 @@ def run():
                         ["classifier_input", (100,1+64), np.double, Lock()], # timestamp, <- features ->
                         ["adapt_flag", (1,1), np.int32, Lock()],
                         ["active_flag", (1,1), np.int8, Lock()]]
-    oclassi = OnlineEMGClassifier(classi, WINDOW_SIZE, WINDOW_INCREMENT, odh, fg, std_out=False, smm=True, smm_items=smm_items)
-
-
+    oclassi = OnlineEMGClassifier(classi, WINDOW_SIZE, WINDOW_INCREMENT, odh, fg, std_out=False, smm=True, file=False, smm_items=smm_items)
+    
     # Create GUI
     files = gjutils.get_images_list(MEDIA_PATH)
     print("Files: ", files)
     print("Creating GUI...")
     gui = realtime_gui.RealTimeGestureUi(files)
     
+    
     stop_event = threading.Event()
-    updateLabelProcess = threading.Thread(target=update_labels_process, args=(gui, smm_items, stop_event))
+    updateLabelTask = threading.Thread(target=update_labels_process, args=(gui, smm_items, stop_event, conn))
 
     try:
         print("Starting classification...")
         oclassi.run(block=False)
-        print("Starting process thread...")
-        updateLabelProcess.start()
+        print("Starting thread...")
+        updateLabelTask.start()
         print("Starting GUI...")
         gui.run()
-
         # while True:
         #     time.sleep(1)
-        
+
     except Exception as e:
         print(f"Error during classification: {e}")
-
     finally :
+        if conn is not None:
+            conn.send("exit")
         stop_event.set()
         oclassi.stop_running()
-
         print("Exiting")
 
+
+
+# COMMUNICATOR
+
+def run_controller(conn: Connection=None):
+    try:
+        hand_comm = ZeusControl()
+        hand_comm.connect()
+
+        # Main loop to read input from stdin
+        print("Communicator waiting for data...")
+        while True:
+            # Read input from stdin
+            if conn is None:
+                input_data = input()
+            else:
+                input_data = conn.recv()
+
+            # Exit the loop if no more input is received
+            if input_data is None or input_data == "":
+                print("NO INPUT RECEIVED")
+                continue
+           
+            # print("Communicator Received input:", input_data)
+            if input_data == "exit":
+                break
+
+            # Process the input 
+            try:
+                input_pred = int(input_data["prediction"])
+                timestamp = input_data["timestamp"]
+                if int(input_pred) not in range(NUM_CLASSES): 
+                    input_pred = 0
+                gesture = gjutils.get_label_from_index(input_pred, MEDIA_PATH)
+
+                print(f"Input: pred({input_pred})  gest[{gesture}]: {input_data}")
+            except Exception as e:
+                print("Invalid input. Error: ", e)
+                continue
+
+            # Send the gesture to the hand
+            hand_comm.send_gesture(gesture)
+    except Exception as e:
+        print(f"Error communicator: {e}")
+    finally:
+        hand_comm.disconnect()
+        print("Communicator Exiting...")
+
+
+# CONNECTION HANDLER
+
+def run_process(target, conn: Connection):
+    try:
+        target(conn)
+    except Exception as e:
+        print(f"An error occurred in a subprocess: {e}")
+    finally:
+        conn.close()
+
 if __name__ == "__main__":
-    run()
+    try:
+            parent_conn, child_conn = Pipe()
+            
+            p1 = Process(target=run_process, args=(run_predicator, parent_conn))
+            p2 = Process(target=run_process, args=(run_controller, child_conn))
+            
+            p1.start()
+            p2.start()
+            
+            p1.join()
+            p2.join()
+    except Exception as e:
+        print(f"An error occurred in the main process: {e}")
+    finally:
+        parent_conn.close()
+        child_conn.close()
+
+        if p1.is_alive():
+            p1.terminate()
+        if p2.is_alive():
+            p2.terminate()

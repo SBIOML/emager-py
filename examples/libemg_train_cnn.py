@@ -22,6 +22,7 @@ NUM_REPS = 5
 WINDOW_SIZE = 200
 WINDOW_INCREMENT = 10
 EPOCH = 10
+SAMPLING = 1007
 
 def prepare_data(dataset_folder):
         classes_values = [str(num) for num in range(NUM_CLASSES)]
@@ -36,7 +37,7 @@ def prepare_data(dataset_folder):
         }
         odh = OfflineDataHandler()
         odh.get_data(folder_location=dataset_folder, filename_dic=dic, delimiter=",")
-        filter = Filter(1000)
+        filter = Filter(SAMPLING)
         notch_filter_dictionary={ "name": "notch", "cutoff": 60, "bandwidth": 3}
         filter.install_filters(notch_filter_dictionary)
         bandpass_filter_dictionary={ "name":"bandpass", "cutoff": [20, 450], "order": 4}
