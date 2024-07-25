@@ -58,7 +58,6 @@ class BLEDevice:
         self.notify_args = args
 
     def _notification_handler(self, sender, data):
-        # print(f"Notification received from {sender}: {data}")
         if self.notify_callbacks:
             self.notify_callbacks(sender, data, self.notify_args)
 

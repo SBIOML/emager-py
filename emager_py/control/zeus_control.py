@@ -1,6 +1,7 @@
 import asyncio
 from emager_py.control.ble_client import BLEDevice, scan_and_connect
 from emager_py.control.gesture_decoder import decode_gesture
+from emager_py.control.constants import *
 import time
 
 SERVICE_UART = "6E400001-C352-11E5-953D-0002A5D5C51B"
@@ -74,10 +75,10 @@ class ZeusControl:
     
     def _notify_callback(self, sender, data, args):
         frame_type, frame_data, status = self._read_data_packet(data)
-        # if status == "Success":
-        #     print(f"Notification Received frame type: {frame_type}, frame data: {frame_data}")
-        # else:
-        #     print(f"Notification Error: {status}")
+        if status == "Success":
+            print(f"Notification Received from {sender} => frame type: {frame_type}, frame data: {frame_data}")
+        else:
+            print(f"Notification Error: {status}")
 
     def read_data(self):
         value = b''
@@ -150,42 +151,3 @@ class CRC32:
             table_index = (current_value ^ byte) & 0xFF
             current_value = (current_value >> 8) ^ self.crc32_table[table_index]
         return ~current_value & 0xFFFFFFFF
-        
-if __name__ == "__main__":
-
-    try:
-        comm = ZeusControl()
-        comm.connect()
-        comm.start_tellemetry()
-        time.sleep(2)
-        comm.send_gesture(18)
-        time.sleep(5)
-        comm.send_gesture("No_Motion")
-        time.sleep(5)
-        comm.send_gesture("Peace")
-        time.sleep(10)
-        comm.send_finger_position(0, 0)
-        comm.send_finger_position(1, 0)
-        comm.send_finger_position(2, 0)
-        comm.send_finger_position(3, 0)
-        comm.send_finger_position(4, 0)
-        time.sleep(2.5)
-        step = 100
-        for i in range(0, 1000, step):
-            comm.send_finger_position(0, max(0, i-200))
-            comm.send_finger_position(1, i)
-            comm.send_finger_position(2, i)
-            comm.send_finger_position(3, i)
-            comm.send_finger_position(4, i)
-            time.sleep(0.1)
-
-
-
-        # while True:
-        #     comm.read_data()
-        #     time.sleep(5)
-
-    finally:
-        comm.disconnect()
-        print("Done")
-
