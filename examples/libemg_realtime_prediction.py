@@ -22,13 +22,14 @@ from multiprocessing import Lock, Process
 eutils.set_logging()
 
 
-MODEL_PATH = "C:\GIT\Datasets/Libemg/Demo/libemg_torch_cnn_Demo_904_24-07-19_13h14.pth"
+MODEL_PATH = "C:\GIT\Datasets/Libemg/Demo/libemg_torch_cnn_Demo_905_24-07-25_16h44.pth"
 MEDIA_PATH = "./media-test/"
 
 NUM_CLASSES = 5
 WINDOW_SIZE=200
 WINDOW_INCREMENT=10
 MAJORITY_VOTE=7
+SAMPLING = 1007
 
 VIRTUAL = False
 
@@ -81,7 +82,7 @@ def run():
     print(f"Streamer created: process: {p}, smi : {smi}")
     odh = OnlineDataHandler(shared_memory_items=smi)
 
-    filter = Filter(1000)
+    filter = Filter(SAMPLING)
     notch_filter_dictionary={ "name": "notch", "cutoff": 60, "bandwidth": 3}
     filter.install_filters(notch_filter_dictionary)
     bandpass_filter_dictionary={ "name":"bandpass", "cutoff": [20, 450], "order": 4}

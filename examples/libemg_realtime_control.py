@@ -11,6 +11,7 @@ import emager_py.utils.utils as eutils
 from emager_py.visualization import realtime_gui
 import emager_py.utils.gestures_json as gjutils
 from emager_py.control.smart_hand_control import SmartHandControl
+from emager_py.control.zeus_control import ZeusControl
 
 import os
 import torch
@@ -23,16 +24,16 @@ import threading
 
 eutils.set_logging()
 
-
-MODEL_PATH = "C:\GIT\Datasets/Libemg/Demo/libemg_torch_cnn_Demo_904_24-07-19_13h14.pth"
+MODEL_PATH = "C:\GIT\Datasets/Libemg/Demo/libemg_torch_cnn_Demo_905_24-07-25_16h44.pth"
 MEDIA_PATH = "C:\GIT\emager-py\media-test/"
 
 NUM_CLASSES = 5
 WINDOW_SIZE=200
 WINDOW_INCREMENT=10
 MAJORITY_VOTE=7
+SAMPLING=1007
 
-VIRTUAL = True
+VIRTUAL = False
 
 
 # PREDICTOR
@@ -85,7 +86,7 @@ def run_predicator(conn: Connection=None):
     print(f"Streamer created: process: {p}, smi : {smi}")
     odh = OnlineDataHandler(shared_memory_items=smi)
 
-    filter = Filter(1000)
+    filter = Filter(SAMPLING)
     notch_filter_dictionary={ "name": "notch", "cutoff": 60, "bandwidth": 3}
     filter.install_filters(notch_filter_dictionary)
     bandpass_filter_dictionary={ "name":"bandpass", "cutoff": [20, 450], "order": 4}
@@ -150,9 +151,9 @@ def run_predicator(conn: Connection=None):
 
 # COMMUNICATOR
 
-def run_communicator(conn: Connection=None):
+def run_controller(conn: Connection=None):
     try:
-        hand_comm = SmartHandControl(deviceName="testpico", mode="BLE")
+        hand_comm = ZeusControl()
         hand_comm.connect()
 
         # Main loop to read input from stdin
@@ -210,7 +211,7 @@ if __name__ == "__main__":
             parent_conn, child_conn = Pipe()
             
             p1 = Process(target=run_process, args=(run_predicator, parent_conn))
-            p2 = Process(target=run_process, args=(run_communicator, child_conn))
+            p2 = Process(target=run_process, args=(run_controller, child_conn))
             
             p1.start()
             p2.start()
