@@ -7,7 +7,7 @@ from libemg.streamers import emager_streamer
 from libemg.filtering import Filter
 from libemg.shared_memory_manager import SharedMemoryManager
 
-from emager_py.utils.find_usb import virtual_port
+from emager_py.utils.find_usb import *
 import emager_py.torch.models as etm
 import emager_py.utils.utils as eutils
 from emager_py.visualization import realtime_gui
@@ -22,7 +22,7 @@ from multiprocessing import Lock, Process
 eutils.set_logging()
 
 
-MODEL_PATH = "C:\GIT\Datasets/Libemg/Demo/libemg_torch_cnn_Demo_917_24-07-17_15h20.pth"
+MODEL_PATH = "C:\GIT\Datasets/Libemg/Demo/libemg_torch_cnn_Demo_962_24-07-23_15h11.pth"
 MEDIA_PATH = "./media-test/"
 
 NUM_CLASSES = 5
@@ -30,7 +30,7 @@ WINDOW_SIZE=200
 WINDOW_INCREMENT=10
 MAJORITY_VOTE=7
 
-VIRTUAL = False
+VIRTUAL = True
 
 def update_labels_process(gui:realtime_gui.RealTimeGestureUi, smm_items:list, stop_event:threading.Event):
     smm = SharedMemoryManager()
@@ -69,8 +69,11 @@ def run():
 
     # Get data port
     if VIRTUAL:
-        DATASET_PATH = "C:\GIT\Datasets\EMAGER/"
-        PORT = virtual_port(DATASET_PATH)
+        DATASET_PATH = "C:\GIT\Datasets\Libemg\Demo/"
+        CLASSES = 5
+        REPS = 5
+        SAMPLING = 1007
+        PORT = virtual_port_libemg_v2(SAMPLING, DATASET_PATH, CLASSES, REPS)
         print("Data generator thread started")
         time.sleep(3)
     else:

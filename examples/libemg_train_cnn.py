@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 
 BASE_PATH = "C:\GIT\Datasets/Libemg/"
-SESSION = "Demo"
+SESSION = "Test5"
 DATASETS_PATH = f"{BASE_PATH}{SESSION}/"
 SAVE_PATH = f"{BASE_PATH}{SESSION}/"
 

@@ -3,14 +3,18 @@ if __name__ == "__main__":
     from libemg.streamers import emager_streamer
     from libemg.filtering import Filter
     import time
-    from emager_py.utils.find_usb import virtual_port
+    from emager_py.utils.find_usb import *
 
-    VIRTUAL = False
+    VIRTUAL = True
     FILTER = True
+    SAMPLING = 1007
 
     if VIRTUAL:
-        DATASET_PATH = "C:\GIT\Datasets\EMAGER/"
-        PORT = virtual_port(DATASET_PATH)
+        DATASET_PATH = "C:\GIT\Datasets\Libemg\Demo/"
+        NUM_CLASSES = 5
+        NUM_REPS = 5
+        SAMPLING = 1007
+        PORT = virtual_port_libemg_v2(SAMPLING, DATASET_PATH, NUM_CLASSES, NUM_REPS)
         print("Data generator thread started")
         time.sleep(3)
     else:
@@ -22,7 +26,7 @@ if __name__ == "__main__":
     odh = OnlineDataHandler(shared_memory_items=smi)
 
     if FILTER:
-        filter = Filter(1000)
+        filter = Filter(SAMPLING)
         notch_filter_dictionary={ "name": "notch", "cutoff": 60, "bandwidth": 3}
         filter.install_filters(notch_filter_dictionary)
         bandpass_filter_dictionary={ "name":"bandpass", "cutoff": [20, 450], "order": 4}

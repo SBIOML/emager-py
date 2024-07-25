@@ -404,3 +404,17 @@ def get_n_shot_embeddings(
         to_sample = np.append(to_sample, to_sample_k)
 
     return get_mean_embeddings(embeddings[to_sample], labels[to_sample], n_classes)
+
+def unmap(emg: np.ndarray):
+    _emg = emg.copy()
+    channelMap = [10, 22, 12, 24, 13, 26, 7, 28, 1, 30, 59, 32, 53, 34, 48, 36] + \
+                          [62, 16, 14, 21, 11, 27, 5, 33, 63, 39, 57, 45, 51, 44, 50, 40] + \
+                          [8, 18, 15, 19, 9, 25, 3, 31, 61, 37, 55, 43, 49, 46, 52, 38] + \
+                          [6, 20, 4, 17, 2, 23, 0, 29, 60, 35, 58, 41, 56, 47, 54, 42]
+    _emg[:, np.array(channelMap)] = emg[:, np.arange(len(channelMap))]
+    return _emg
+
+def unroll_starting_point(packet):
+    offset = np.random.randint(0, len(packet))
+    rolled_packet = np.roll(packet, offset)
+    return rolled_packet

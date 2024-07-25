@@ -4,15 +4,18 @@ if __name__ == "__main__":
     from libemg.gui import GUI
     from libemg.streamers import emager_streamer
     import time
-    from emager_py.utils.find_usb import virtual_port
+    from emager_py.utils.find_usb import *
 
-    VIRTUAL = False
-    SESSION = "Demo"
+    VIRTUAL = True
+    SESSION = "Test5"
     DATAFOLDER = f"C:\GIT\Datasets\Libemg\{SESSION}/"
 
     if VIRTUAL:
-        DATASET_PATH = "C:\GIT\Datasets\EMAGER/"
-        PORT = virtual_port(DATASET_PATH)
+        DATASET_PATH = "C:\GIT\Datasets\Libemg\Demo/"
+        NUM_CLASSES = 5
+        NUM_REPS = 5
+        SAMPLING = 1007
+        PORT = virtual_port_libemg_v2(SAMPLING, DATASET_PATH, NUM_CLASSES, NUM_REPS)
         print("Data generator thread started")
         time.sleep(3)
     else:
