@@ -1,0 +1,64 @@
+
+# PINS DEFINITION
+PIN_SERVO = [
+    13, # THUMB
+    14, # INDEX
+    15, # MIDDLE
+    18, # RING
+    19, # LITTLE
+    20  # SPARE
+]
+# FINGER DEFINITIONS
+class Finger:
+    THUMB = 0
+    INDEX = 1
+    MIDDLE = 2
+    RING = 3
+    LITTLE = 4
+
+class Gesture:
+    # Define constants for each gesture
+    NO_MOTION = 1
+    HAND_CLOSE = 2
+    HAND_OPEN = 3
+    WRIST_FLEXION = 4
+    WRIST_EXTENSION = 5
+    PRONATION = 6
+    SUPINATION = 7
+    CHUCK_GRIP = 8
+    HANG_LOOSE = 9
+    PEACE = 10
+    SCISSORS = 11
+    FINGER_GUN1 = 12
+    FINGER_GUN2 = 13
+    THUMBS_UP = 14
+    THUMBS_DOWN = 15
+    L = 16
+    STOP = 17
+    OK = 18
+    ROCK_ON = 19
+    FINGERS_CROSSED = 20
+    THUMB_FLEXION = 21
+    INDEX_FLEXION = 22
+    MIDDLE_FLEXION = 23
+    RING_FLEXION = 24
+    PINKY_FLEXION = 25
+    INDEX_PINCH = 26
+    MIDDLE_PINCH = 27
+    RING_PINCH = 28
+    PINKY_PINCH = 29
+    INDEX_EXTENSION = 30
+    MIDDLE_EXTENSION = 31
+    RING_EXTENSION = 32
+    PINKY_EXTENSION = 33
+    A_LITTLE = 34
+    QUOTES = 35
+
+class Logger:
+    VERBOSE = 0
+    DEBUG = 1
+    INFO = 2
+    WARNING = 3
+    ERROR = 4
+    CRITICAL = 5
+    NOTHING = 6

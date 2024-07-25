@@ -1,5 +1,5 @@
-from emager_py.communication.ble_client import BLEDevice, scan_and_connect
-from emager_py.communication.serial_com import SerialCommunication
+from emager_py.control.ble_client import BLEDevice, scan_and_connect
+from emager_py.control.serial_com import SerialCommunication
 import time
 
 SERVICE_UART = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"

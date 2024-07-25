@@ -10,7 +10,7 @@ import emager_py.torch.models as etm
 import emager_py.utils.utils as eutils
 from emager_py.visualization import realtime_gui
 import emager_py.utils.gestures_json as gjutils
-from emager_py.communication.smart_hand_control import SmartHandControl
+from emager_py.control.smart_hand_control import SmartHandControl
 
 import os
 import torch
