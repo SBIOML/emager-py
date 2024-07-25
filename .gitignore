@@ -10,5 +10,5 @@ pdm.lock
 gestures
 media*
 lightning_logs/
-data
+data/*
 datasets
