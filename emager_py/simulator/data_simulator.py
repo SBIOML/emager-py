@@ -6,12 +6,15 @@ import numpy as np
 
 
 class EmagerSimulator:
-    def __init__(self, prepared_data, sampling_rate, port, baudrate=1500000):
+    def __init__(self, prepared_data:np.array, sampling_rate, port, baudrate=1500000):
         self.sampling_rate = sampling_rate
         self.streamer = serial.Serial(port, baudrate, timeout=1)
         self.stop_event = threading.Event()
 
-        prepared_data = np.concatenate(prepared_data, axis=0)
+        self.prepare_data(prepared_data)
+
+    def prepare_data(self, data):
+        prepared_data = np.concatenate(data, axis=0)
         prepared_data = prepared_data.reshape(-1, 64)
         data_unmap = dp.unmap(np.array(prepared_data)).astype(np.int16)
         
@@ -25,17 +28,16 @@ class EmagerSimulator:
         samples = [int.from_bytes(bytes([self.emg[0][s*2], self.emg[0][s*2+1]]), 'little',signed=True) for s in range(64)]
         print(f"Samples of emg[0]: {samples}")
 
-
     def start(self):
         """
         Start serving data deamon thread.
         """
-        t = threading.Thread(target=self._serve_data,  daemon=True)
-        t.start()
-        return t
+        self.thread = threading.Thread(target=self._serve_data,  daemon=True)
+        self.thread.start()
     
     def stop(self):
         self.stop_event.set()
+        self.thread.join()
 
     def _serve_data(self):
         interval = 1.0 / self.sampling_rate  # Time between data packets

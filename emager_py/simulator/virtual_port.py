@@ -1,33 +1,15 @@
-import serial.tools.list_ports
-import emager_py.data.data_generator as edg
-import sys
-import time
-from emager_py.streamers import SerialStreamer, socat_serial_serial
 from emager_py.simulator.data_simulator import EmagerSimulator
 from libemg.data_handler import OfflineDataHandler
 from libemg.utils import make_regex
 import subprocess as sp
 import os
 import numpy as np
+import sys
+import time
 
 
-def find_port(vid, pid):
-    ports = serial.tools.list_ports.comports()
-    for port in ports:
-        if port.vid == vid and port.pid == pid:
-            print(f"Found device: {port.device}")
-            return port.device
-    raise ValueError("Device not found")
-    return None
 
-def find_psoc():
-    return find_port(0x04b4, 0xf155)
-
-def find_pico():
-    return find_port(0x2e8a, 0x0005)
-
-
-def virtual_port(prepared_data, sampling) -> str:
+def virtual_port(prepared_data:np.array, sampling):
     PORT1 = '/dev/ttyV1' if sys.platform.startswith('linux') else 'COM1'
     PORT2 = '/dev/ttyV2' if sys.platform.startswith('linux') else 'COM2'
     BAUDRATE = 1500000
@@ -46,7 +28,7 @@ def virtual_port(prepared_data, sampling) -> str:
     simulator = EmagerSimulator(prepared_data, sampling, PORT2, BAUDRATE)
     simulator.start()
 
-    return PORT1
+    return PORT1, simulator
 
 def virtual_port_libemg_v1(sampling, datasetpath, num_classes, num_reps) -> str:
     '''
