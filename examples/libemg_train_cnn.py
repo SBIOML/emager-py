@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 
 BASE_PATH = "C:\GIT\Datasets/Libemg/"
-SESSION = "Demo"
+SESSION = "TestVideo"
 DATASETS_PATH = f"{BASE_PATH}{SESSION}/"
 SAVE_PATH = f"{BASE_PATH}{SESSION}/"
 
@@ -22,7 +22,7 @@ NUM_REPS = 5
 WINDOW_SIZE = 200
 WINDOW_INCREMENT = 10
 EPOCH = 10
-SAMPLING = 1007
+SAMPLING = 1010
 
 def prepare_data(dataset_folder):
         classes_values = [str(num) for num in range(NUM_CLASSES)]

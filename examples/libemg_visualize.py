@@ -6,7 +6,8 @@ if __name__ == "__main__":
     from emager_py.utils.find_usb import virtual_port
 
     VIRTUAL = False
-    FILTER = False
+    FILTER = True
+    SAMPLING = 1010
 
     if VIRTUAL:
         DATASET_PATH = "C:\GIT\Datasets\EMAGER/"
@@ -22,7 +23,7 @@ if __name__ == "__main__":
     odh = OnlineDataHandler(shared_memory_items=smi)
 
     if FILTER:
-        filter = Filter(1000)
+        filter = Filter(SAMPLING)
         notch_filter_dictionary={ "name": "notch", "cutoff": 60, "bandwidth": 3}
         filter.install_filters(notch_filter_dictionary)
         bandpass_filter_dictionary={ "name":"bandpass", "cutoff": [20, 450], "order": 4}

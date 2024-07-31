@@ -8,7 +8,7 @@ CHAR_UART_RX = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
 
 class SmartHandControl:
 
-    def __init__(self, deviceName="NewHandCommDevice", mode="BOTH", baud_rate=115200, port=None):
+    def __init__(self, deviceName="testpico", mode="BLE", baud_rate=115200, port=None):
         self.deviceName = deviceName
         self.use_ble = False
         self.device:BLEDevice = None

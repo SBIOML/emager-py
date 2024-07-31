@@ -24,14 +24,14 @@ import threading
 
 eutils.set_logging()
 
-MODEL_PATH = "C:\GIT\Datasets/Libemg/Demo/libemg_torch_cnn_Demo_905_24-07-25_16h44.pth"
+MODEL_PATH = "C:\GIT\Datasets/Libemg/TestVideo/libemg_torch_cnn_TestVideo_974_24-07-30_15h18.pth"
 MEDIA_PATH = "C:\GIT\emager-py\media-test/"
 
 NUM_CLASSES = 5
 WINDOW_SIZE=200
 WINDOW_INCREMENT=10
 MAJORITY_VOTE=7
-SAMPLING=1007
+SAMPLING=1010
 
 VIRTUAL = False
 
@@ -62,7 +62,7 @@ def update_labels_process(gui:realtime_gui.RealTimeGestureUi, smm_items:list, st
         }
         print(f"Sending data: ({(output_data['prediction'])}) : {output_data} ")
 
-        gui.update_index(output_data["prediction"])
+        # gui.update_index(output_data["prediction"])
 
         if conn is not None:
             print(" "*80,"... sending data ...")
@@ -134,9 +134,9 @@ def run_predicator(conn: Connection=None):
         print("Starting thread...")
         updateLabelTask.start()
         print("Starting GUI...")
-        gui.run()
-        # while True:
-        #     time.sleep(1)
+        # gui.run()
+        while True:
+            time.sleep(1)
 
     except Exception as e:
         print(f"Error during classification: {e}")
@@ -153,8 +153,11 @@ def run_predicator(conn: Connection=None):
 
 def run_controller(conn: Connection=None):
     try:
-        hand_comm = ZeusControl()
-        hand_comm.connect()
+        zeus_comm = ZeusControl()
+        smart_comm = SmartHandControl()
+
+        zeus_comm.connect()
+        smart_comm.connect()
 
         # Main loop to read input from stdin
         print("Communicator waiting for data...")
@@ -188,11 +191,13 @@ def run_controller(conn: Connection=None):
                 continue
 
             # Send the gesture to the hand
-            hand_comm.send_gesture(gesture)
+            zeus_comm.send_gesture(gesture)
+            smart_comm.send_gesture(gesture)
     except Exception as e:
         print(f"Error communicator: {e}")
     finally:
-        hand_comm.disconnect()
+        zeus_comm.disconnect()
+        smart_comm.disconnect()
         print("Communicator Exiting...")
 
 
