@@ -78,6 +78,7 @@ def sample_training_data(
     gesture_id: int,
 ):
     r = er.EmagerRedis(redis_host)
+    r.set_sampling_params(n_samples=n_samples)
     n_batches_per_it = n_samples // r.get_int(r.BATCH_KEY)
     run_remote_finn(conn, path, f"rhd_sampler {redis_host}")
     for _ in range(n_batches_per_it):

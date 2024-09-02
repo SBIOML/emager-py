@@ -1,6 +1,7 @@
 from qonnx.core.modelwrapper import ModelWrapper
 import torch
 import numpy as np
+import logging as log
 
 from emager_py import dataset
 
@@ -34,6 +35,7 @@ def validate_brevitas_qonnx(
     session: str,
     transform_fn,
     n_samples: int = 10,
+    emg_shape = (4, 16)
 ):
     onnx_model = ModelWrapper(onnx_path)
     brevitas_model.eval()
@@ -41,19 +43,17 @@ def validate_brevitas_qonnx(
     data, labels = dataset.generate_processed_validation_data(
         emager_path, subject, session, transform_fn, save=False
     )
-    data, labels = data[:n_samples], labels[:n_samples]
+    data, labels = data[:n_samples].reshape(-1, 1, *emg_shape), labels[:n_samples]
     data = data.astype(np.float32)
 
     ok, nok = 0, 0
     for i in range(n_samples):
-        brevitas_output = infer_brevitas(brevitas_model, data[i])
-        finn_output = infer_finn_onnx(onnx_model, data[i])
+        sample = data[i:i+1]
+        brevitas_output = infer_brevitas(brevitas_model, sample)
+        finn_output = infer_finn_onnx(onnx_model, sample)
 
-        print("Brevitas output: ", brevitas_output)
-        print("Finn output: ", finn_output)
-
-        # print("Brevitas output shape: ", brevitas_output.shape)
-        # print("Finn output shape: ", finn_output.shape)
+        log.info("Brevitas output shape: ", brevitas_output.shape)
+        log.info("Finn output shape: ", finn_output.shape)
 
         if brevitas_output.shape[-1] > 1:
             brevitas_output = np.argmax(brevitas_output)
@@ -65,13 +65,11 @@ def validate_brevitas_qonnx(
         else:
             finn_output = finn_output[0]
 
-        print(brevitas_output, finn_output)
-
         # compare the outputs
         ok += 1 if finn_output == brevitas_output else 0
         nok += 1 if finn_output != brevitas_output else 0
 
-        print(
+        log.info(
             f"({i+1}/{n_samples}): OK={ok}, NOK={nok}. True label: {labels[i]}, Brevitas: {brevitas_output}, Finn: {finn_output}"
         )
 

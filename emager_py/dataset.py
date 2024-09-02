@@ -29,6 +29,7 @@ Usually, the entry point is `load_emager_data`, which can load any subject and s
 Then, use functions from `emager_py.data_processing` to process the data, extract the labels, shuffle in batches the dataset, etc.
 """
 
+from typing import Iterable
 import numpy as np
 import logging as log
 import os
@@ -355,11 +356,11 @@ def get_lnocv_datasets(
     Returns a tuple of datasets: (train, test), each as GRNC arrays.
     """
 
-    if not isinstance(test_rep, list):
+    if not isinstance(test_rep, Iterable):
         test_rep = [test_rep]
 
     # First, load the entire dataset
-    if not isinstance(session, list):
+    if not isinstance(session, Iterable):
         session = [session]
 
     # concatenate them as repetitions
