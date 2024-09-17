@@ -213,12 +213,11 @@ class EmagerSCNN(L.LightningModule):
         # training_step defines the train loop. It is independent of forward
         x1, x2, x3 = batch
         anchor, positive, negative = self(x1), self(x2), self(x3)
-        loss =  F.triplet_margin_loss(anchor, positive, negative, margin=0.2)
+        loss = F.triplet_margin_loss(anchor, positive, negative, margin=0.2)
         self.log("train_loss", loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        # training_step defines the train loop. It is independent of forward
         x1, x2, x3 = batch
         anchor, positive, negative = self(x1), self(x2), self(x3)
         loss = F.triplet_margin_loss(anchor, positive, negative, margin=0.2)

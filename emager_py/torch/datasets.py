@@ -59,7 +59,7 @@ def get_lnocv_dataloaders(
     transform=None,
     train_batch=64,
     test_batch=256,
-    emg_shape=(4,16)
+    emg_shape=(4, 16),
 ):
     """
     Load LNOCV datasets from disk and return DataLoader instances for training and testing.
@@ -94,7 +94,7 @@ def get_redis_dataloaders(
     transform=None,
     train_batch=64,
     test_batch=256,
-    emg_shape=(4,16)
+    emg_shape=(4, 16),
 ):
     """
     Create dataloaders from a Redis database by dumping them into numpy arrays and doing some preprocessing steps.
@@ -133,53 +133,60 @@ def get_triplet_dataloaders(
     emg_shape=(4, 16),
 ):
     """
-    Get triplet dataloaders for training and validation, and a regular dataloader for testing.
+    Get triplet dataloaders for training, calibrating and testing.
+
+    Returns a tuple of (train_dataloader, test_intra_dataloader, calib_inter_dataloader, test_inter_dataloader)
     """
     train_session = int(train_session)
-    test_session = 1 if train_session == 2 else 2
 
-    # Make train and validation data
-    train_data, val_data = ed.get_lnocv_datasets(
+    # intra-session train/calib/test
+    train_data, test_intra_data = ed.get_lnocv_datasets(
         dataset_path, subject, train_session, val_rep
     )
-    # Process and split into data and labels each set
-    (train_data, train_labels), (val_data, val_labels) = dp.prepare_lnocv_datasets(
-        train_data, val_data, absda, transform
+    (train_data, train_labels), (test_intra_data, test_intra_labels) = (
+        dp.prepare_lnocv_datasets(train_data, test_intra_data, absda, transform)
     )
-
-    # Make test data
-    test_data = ed.load_emager_data(dataset_path, subject, test_session)
-    if transform:
-        test_data = transform(test_data)
-    test_data, test_labels = dp.extract_labels(test_data)
-
     train_data = train_data.astype(np.float32)
-    val_data = val_data.astype(np.float32)
-    test_data = test_data.astype(np.float32)
-
-    train_triplets = dp.generate_triplets(train_data, train_labels, n_triplets)
-    val_triplets = dp.generate_triplets(val_data, val_labels, n_triplets // 10)
-
-    train_triplets = [torch.from_numpy(t).reshape((-1, 1, *emg_shape)) for t in train_triplets]
-    val_triplets = [torch.from_numpy(t).reshape((-1, 1, *emg_shape)) for t in val_triplets]
-
-    train_dl = DataLoader(
-        TensorDataset(*train_triplets), batch_size=train_batch, shuffle=True
-    )
-    val_dl = DataLoader(
-        TensorDataset(*val_triplets), batch_size=val_batch, shuffle=False
-    )
-    _, test_dl = _get_generic_dataloaders(
-        np.ndarray((0, 0)),
-        np.ndarray((0, 0)),
-        test_data.reshape((-1, 1, *emg_shape)),
-        test_labels,
+    test_intra_data = test_intra_data.astype(np.float32)
+    calib_intra_dl, test_intra_dl = _get_generic_dataloaders(
+        train_data.reshape((-1, 1, *emg_shape)),
+        train_labels,
+        test_intra_data.reshape((-1, 1, *emg_shape)),
+        test_intra_labels,
         train_batch,
         val_batch,
         "none",
     )
 
-    return train_dl, val_dl, test_dl
+    # Generate triplets
+    train_triplets = dp.generate_triplets(train_data, train_labels, n_triplets)
+    train_triplets = [
+        torch.from_numpy(t).reshape((-1, 1, *emg_shape)) for t in train_triplets
+    ]
+    train_dl = DataLoader(
+        TensorDataset(*train_triplets), batch_size=train_batch, shuffle=True
+    )
+
+    # inter-session
+    calib_inter_data, test_inter_data = ed.get_lnocv_datasets(
+        dataset_path, subject, 1 if train_session == 2 else 2, val_rep
+    )
+    (calib_inter_data, calib_inter_labels), (test_inter_data, test_inter_labels) = (
+        dp.prepare_lnocv_datasets(calib_inter_data, test_inter_data, absda, transform)
+    )
+    calib_inter_data = calib_inter_data.astype(np.float32)
+    test_inter_data = test_inter_data.astype(np.float32)
+    calib_inter_dl, test_inter_dl = _get_generic_dataloaders(
+        calib_inter_data.reshape((-1, 1, *emg_shape)),
+        calib_inter_labels,
+        test_inter_data.reshape((-1, 1, *emg_shape)),
+        test_inter_labels,
+        val_batch,
+        val_batch,
+        "none",
+    )
+
+    return train_dl, calib_intra_dl, test_intra_dl, calib_inter_dl, test_inter_dl
 
 
 if __name__ == "__main__":

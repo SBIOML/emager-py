@@ -20,8 +20,8 @@ readme = "README.md"
 license = { text = "MIT" }
 
 [project.optional-dependencies]
-torch = ["torch>=2.2.1", "brevitas>=0.10.2", "lightning>=2.2.3"]
-finn = ["qonnx>=0.3.0", "fabric>=3.2.2", "lightning>=2.2.4"]
+torch = ["torch==2.2.1", "brevitas>=0.10.2", "lightning==2.2.3"]
+finn = ["qonnx>=0.3.0", "fabric>=3.2.2", "torch==1.13.1", "lightning"]
 
 [build-system]
 requires = ["pdm-backend"]
