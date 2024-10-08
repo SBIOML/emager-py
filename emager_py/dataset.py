@@ -267,8 +267,7 @@ def process_save_dataset(
             "Data shape must be (n_gestures, n_reps, n_samples, n_channels)"
         )
 
-    out_path = out_path + format_subject(subject) + format_session(session)
-    if not os.path.exists(out_path):
+    if not os.path.exists(out_path + format_subject(subject) + format_session(session)):
         os.makedirs(out_path)
 
     nb_gesture = data.shape[0]

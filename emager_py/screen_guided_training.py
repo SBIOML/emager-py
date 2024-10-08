@@ -147,9 +147,6 @@ class EmagerGuidedTraining:
             self.timer["text"] = "Press Continue"
             self.state = 0
 
-    def cancel_training(self):
-        self.root.quit()
-
     def set_picture(self, grayscale=False):
         if grayscale:
             self.image = (
@@ -167,6 +164,9 @@ class EmagerGuidedTraining:
 
     def start(self):
         self.root.mainloop()
+
+    def cancel_training(self):
+        self.root.destroy()
 
 
 if __name__ == "__main__":
