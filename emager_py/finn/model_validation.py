@@ -52,8 +52,8 @@ def validate_brevitas_qonnx(
         brevitas_output = infer_brevitas(brevitas_model, sample)
         finn_output = infer_finn_onnx(onnx_model, sample)
 
-        log.info("Brevitas output shape: ", brevitas_output.shape)
-        log.info("Finn output shape: ", finn_output.shape)
+        log.info(f"Brevitas output shape: {brevitas_output.shape}")
+        log.info(f"Finn output shape: {finn_output.shape}")
 
         if brevitas_output.shape[-1] > 1:
             brevitas_output = np.argmax(brevitas_output)
