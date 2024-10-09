@@ -94,6 +94,7 @@ def save_scnn_model_as_qonnx(
 
     # Visualize if you want
     if show:
+        log.warning("Showing model in Netron spawns a NON DAEMON THREAD!!!.")
         from finn.util.visualization import showSrc, showInNetron
 
         showInNetron(out_path)

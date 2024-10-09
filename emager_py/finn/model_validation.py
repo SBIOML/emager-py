@@ -35,7 +35,7 @@ def validate_brevitas_qonnx(
     session: str,
     transform_fn,
     n_samples: int = 10,
-    emg_shape = (4, 16)
+    emg_shape=(4, 16),
 ):
     onnx_model = ModelWrapper(onnx_path)
     brevitas_model.eval()
@@ -48,7 +48,7 @@ def validate_brevitas_qonnx(
 
     ok, nok = 0, 0
     for i in range(n_samples):
-        sample = data[i:i+1]
+        sample = data[i : i + 1]
         brevitas_output = infer_brevitas(brevitas_model, sample)
         finn_output = infer_finn_onnx(onnx_model, sample)
 
@@ -69,8 +69,6 @@ def validate_brevitas_qonnx(
         ok += 1 if finn_output == brevitas_output else 0
         nok += 1 if finn_output != brevitas_output else 0
 
-        log.info(
-            f"({i+1}/{n_samples}): OK={ok}, NOK={nok}. True label: {labels[i]}, Brevitas: {brevitas_output}, Finn: {finn_output}"
-        )
+        log.info(f"({i+1}/{n_samples}): OK={ok}, NOK={nok}")
 
     return (ok / (ok + nok)) * 100
