@@ -1,3 +1,4 @@
+from typing import Iterable
 import numpy as np
 import logging as log
 import torch
@@ -66,9 +67,9 @@ def get_lnocv_dataloaders(
 
     Returns a tuple of (train_dataloader, test_dataloader)
     """
-    if not isinstance(session, list):
+    if not isinstance(session, Iterable):
         session = [session]
-    if not isinstance(left_out_rep, list):
+    if not isinstance(left_out_rep, Iterable):
         left_out_rep = [left_out_rep]
 
     data, lo = ed.get_lnocv_datasets(dataset_path, subject, session, left_out_rep)
@@ -172,7 +173,7 @@ def get_triplet_dataloaders(
         dataset_path, subject, 1 if train_session == 2 else 2, val_rep
     )
     (calib_inter_data, calib_inter_labels), (test_inter_data, test_inter_labels) = (
-        dp.prepare_lnocv_datasets(calib_inter_data, test_inter_data, absda, transform)
+        dp.prepare_lnocv_datasets(calib_inter_data, test_inter_data, "none", transform)
     )
     calib_inter_data = calib_inter_data.astype(np.float32)
     test_inter_data = test_inter_data.astype(np.float32)

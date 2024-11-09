@@ -75,10 +75,7 @@ def preprocess_data(data_array, window_length=25, fs=1000, Q=30, notch_freq=60):
             processed_data = filter_utility(
                 processed_data, fs=fs, Q=Q, notch_freq=notch_freq
             )
-            processed_data = np.mean(
-                np.absolute(processed_data - np.mean(processed_data, axis=0)),
-                axis=0,
-            )
+            processed_data = np.mean(np.abs(processed_data - np.mean(processed_data, axis=0)), axis=0)
             output_data[curr_window, :] = processed_data
 
     elif len(np.shape(data_array)) == 4:
