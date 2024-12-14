@@ -136,7 +136,7 @@ def get_triplet_dataloaders(
     """
     Get triplet dataloaders for training, calibrating and testing.
 
-    Returns a tuple of (train_dataloader, test_intra_dataloader, calib_inter_dataloader, test_inter_dataloader)
+    Returns a tuple of (train_dl, calib_intra_dl, test_intra_dl, calib_inter_dl, test_inter_dl)
     """
     train_session = int(train_session)
 
