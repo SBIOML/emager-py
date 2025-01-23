@@ -27,7 +27,7 @@ class EmagerGuidedTraining:
     def __init__(
         self,
         reps: int = 5,
-        gestures: list[int] = [2, 14, 26, 1, 14, 30],
+        gestures: list[int] = [2, 14, 26, 1, 8, 30],
         gestures_path: str = "gestures",
         training_time: float = 5,
         resume_training_callback: callable = None,
@@ -100,7 +100,9 @@ class EmagerGuidedTraining:
         if self.current_rep >= self.total_reps:
             self.info_lbl["text"] = "Training completed, exiting soon..."
             self.continue_btn["state"] = tk.DISABLED
-            self.countdown(3, self.cancel_training)
+            self.countdown(1, self.cancel_training)
+            self.image_lbl.configure(image=None)
+            self.image_lbl.image = None
             return
 
         if self.state == 0:
@@ -150,14 +152,14 @@ class EmagerGuidedTraining:
     def set_picture(self, grayscale=False):
         if grayscale:
             self.image = (
-                Image.open(self.gestures[self.gesture_index])
-                .convert("L")
-                .resize((400, 400))
+                Image.open(self.gestures[self.gesture_index]).convert("L")
+                # .resize((400, 400))
             )
         else:
-            self.image = Image.open(self.gestures[self.gesture_index]).resize(
-                (400, 400)
-            )
+            self.image = Image.open(self.gestures[self.gesture_index])
+            # .resize(
+            #     (400, 400)
+            # )
         image = ImageTk.PhotoImage(self.image)
         self.image_lbl.configure(image=image)
         self.image_lbl.image = image

@@ -20,7 +20,7 @@ Where:
 
 NOTE: subject, gesture and repetition numbers are 0-indexed. Session is 1-indexed.
 
-This module provides routines to load, process and save EMaGer dataset-compatible data. 
+This module provides routines to load, process and save EMaGer dataset-compatible data.
 
 The saving/loading routines expect the data arrays to have the following shape:
 - (nb_gesture, nb_repetition, samples, num_channels), denoted as (G, R, N, C) OR (G, R, N, H, W) for images, where C = H*W
@@ -266,9 +266,9 @@ def process_save_dataset(
         raise ValueError(
             "Data shape must be (n_gestures, n_reps, n_samples, n_channels)"
         )
-
-    if not os.path.exists(out_path + format_subject(subject) + format_session(session)):
-        os.makedirs(out_path)
+    out_dir = out_path + format_subject(subject) + format_session(session)
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir, exist_ok=True)
 
     nb_gesture = data.shape[0]
     nb_rep = data.shape[1]
@@ -277,7 +277,7 @@ def process_save_dataset(
         for rep in range(nb_rep):
             processed_data = transform(data[gesture, rep, :, :])
             np.savetxt(
-                out_path + format_repetition(subject, session, gesture, rep, ""),
+                out_dir + format_repetition(subject, session, gesture, rep, ""),
                 processed_data,
                 delimiter=",",
             )
