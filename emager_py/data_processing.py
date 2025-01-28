@@ -48,7 +48,7 @@ def filter_utility(data, fs=1000, Q=30, notch_freq=60):
     return signal.filtfilt(b_notch, a_notch, data, axis=0)
 
 
-def preprocess_data(data_array, window_length=25, fs=1000, Q=10, notch_freq=60):
+def preprocess_data(data_array, window_length=25, fs=1000, Q=20, notch_freq=60):
     """
     Given a 2D or 4D data array, preprocess the data by applying notch filter and DC removal.
     Processing is applied on `window_length` non-overlapping samples.
