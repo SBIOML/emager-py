@@ -106,12 +106,16 @@ def step_deploy_to_pynq(model: ModelWrapper, cfg: build_cfg.DataflowBuildConfig)
     pynq_emg_path = model.get_metadata_prop("emager_pynq_path")
 
     shutil.rmtree(cfg.output_dir + "/deploy/finn_driver", ignore_errors=True)
-    os.rename(cfg.output_dir + "/deploy/driver", cfg.output_dir + "/deploy/finn_driver")
+    shutil.copytree(
+        cfg.output_dir + "/deploy/driver", cfg.output_dir + "/deploy/finn_driver"
+    )
+    # os.rename(cfg.output_dir + "/deploy/driver", cfg.output_dir + "/deploy/finn_driver")
     log.info(
         make_archive(cfg.output_dir + "/deploy", "zip", cfg.output_dir + "/deploy")
     )
 
-    conn = ro.connect_to_pynq()
+    conn = ro.connect_to_pynq(hostname="192.168.0.99")
+    print(pynq_emg_path, conn)
     result = conn.put(
         cfg.output_dir + "deploy.zip",
         remote=pynq_emg_path,

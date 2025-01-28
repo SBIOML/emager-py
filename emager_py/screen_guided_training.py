@@ -13,7 +13,7 @@ def get_gestures_from_libemg(gestures: list, out_path: str, img_format="png"):
     train_ui = ScreenGuidedTraining()
     out_path += "/"
     # Download gestures with indices 1,2,3,4,5 and store them in the "gestures/" folder
-    train_ui.download_gestures(gestures, out_path, download_gifs=True)
+    train_ui.download_gestures(gestures, out_path, download_gifs=False)
     list_file = list(filter(lambda f: f.endswith("json"), os.listdir(out_path)))[0]
     gestures_name = []
     with open(out_path + list_file, "r") as f:

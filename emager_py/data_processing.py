@@ -21,14 +21,12 @@ def extract_labels(data_array):
     for label in range(labels):
         for experiment in range(nb_exp):
             X[
-                nb_sample
-                * (label * nb_exp + experiment) : nb_sample
+                nb_sample * (label * nb_exp + experiment) : nb_sample
                 * (label * nb_exp + experiment + 1),
                 :,
             ] = data_array[label, experiment, :, :]
             y[
-                nb_sample
-                * (label * nb_exp + experiment) : nb_sample
+                nb_sample * (label * nb_exp + experiment) : nb_sample
                 * (label * nb_exp + experiment + 1)
             ] = label
     return X, y
@@ -50,7 +48,7 @@ def filter_utility(data, fs=1000, Q=30, notch_freq=60):
     return signal.filtfilt(b_notch, a_notch, data, axis=0)
 
 
-def preprocess_data(data_array, window_length=25, fs=1000, Q=30, notch_freq=60):
+def preprocess_data(data_array, window_length=25, fs=1000, Q=10, notch_freq=60):
     """
     Given a 2D or 4D data array, preprocess the data by applying notch filter and DC removal.
     Processing is applied on `window_length` non-overlapping samples.
@@ -75,7 +73,9 @@ def preprocess_data(data_array, window_length=25, fs=1000, Q=30, notch_freq=60):
             processed_data = filter_utility(
                 processed_data, fs=fs, Q=Q, notch_freq=notch_freq
             )
-            processed_data = np.mean(np.abs(processed_data - np.mean(processed_data, axis=0)), axis=0)
+            processed_data = np.mean(
+                np.abs(processed_data - np.mean(processed_data, axis=0)), axis=0
+            )
             output_data[curr_window, :] = processed_data
 
     elif len(np.shape(data_array)) == 4:

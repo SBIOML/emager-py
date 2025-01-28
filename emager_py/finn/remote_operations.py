@@ -71,16 +71,15 @@ def sample_live_data(
 
 
 def sample_training_data(
+    r: er.EmagerRedis,
     conn: fabric.Connection,
-    redis_host: str,
     n_samples: int,
     path: str,
     gesture_id: int,
 ):
-    r = er.EmagerRedis(redis_host)
     r.set_sampling_params(n_samples=n_samples)
     n_batches_per_it = n_samples // r.get_int(r.BATCH_KEY)
-    run_remote_finn(conn, path, f"rhd_sampler {redis_host}")
+    run_remote_finn(conn, path, "rhd_sampler")
     for _ in range(n_batches_per_it):
         r.push_fifo(r.LABELS_FIFO_KEY, np.array(gesture_id, dtype=np.uint8).tobytes())
     return n_batches_per_it
