@@ -2,6 +2,7 @@ import numpy as np
 
 import torch
 import torch.nn as nn
+from torch.functional import F
 
 import lightning as L
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
@@ -26,92 +27,126 @@ class EmagerCNN(L.LightningModule):
         super().__init__()
 
         self.input_shape = input_shape
+        self.finetune = False
 
-        output_sizes = [16, 16, 16, 32]
+        output_sizes = [16, 32, 64, 32]
 
-        self.loss = nn.CrossEntropyLoss()
-
-        self.bn1 = nn.BatchNorm2d(output_sizes[0])
-        self.bn2 = nn.BatchNorm2d(output_sizes[1])
-        self.bn3 = nn.BatchNorm2d(output_sizes[2])
-        self.flat = nn.Flatten()
-        self.dropout4 = nn.Dropout(0.5)
-        self.bn4 = nn.BatchNorm1d(output_sizes[3])
+        layers = []
 
         if quantization < 0 or quantization >= 32:
-            self.inp = nn.Identity()
-            self.conv1 = nn.Conv2d(1, output_sizes[0], 3, padding=1)
-            self.relu1 = nn.ReLU()
-            self.conv2 = nn.Conv2d(output_sizes[0], output_sizes[1], 3, padding=1)
-            self.relu2 = nn.ReLU()
-            self.conv3 = nn.Conv2d(output_sizes[1], output_sizes[2], 5, padding=2)
-            self.relu3 = nn.ReLU()
-            self.fc4 = nn.Linear(
-                output_sizes[2] * np.prod(self.input_shape),
-                output_sizes[3],
+            layers.append(nn.Conv2d(1, output_sizes[0], 3, padding=1))
+            layers.append(nn.BatchNorm2d(output_sizes[0]))
+            layers.append(nn.ReLU())
+
+            layers.append(nn.Conv2d(output_sizes[0], output_sizes[1], 3, padding=1))
+            layers.append(nn.BatchNorm2d(output_sizes[1]))
+            layers.append(nn.ReLU())
+
+            layers.append(nn.Conv2d(output_sizes[1], output_sizes[2], 5, padding=2))
+            layers.append(nn.BatchNorm2d(output_sizes[2]))
+            layers.append(nn.ReLU())
+
+            layers.append(nn.Flatten())
+
+            layers.append(
+                nn.Linear(
+                    output_sizes[2] * np.prod(self.input_shape),
+                    output_sizes[3],
+                )
             )
-            self.relu4 = nn.ReLU()
-            self.fc5 = nn.Linear(output_sizes[3], num_classes)
+            layers.append(nn.BatchNorm1d(output_sizes[3]))
+            layers.append(nn.ReLU())
+            layers.append(nn.Dropout())
+
+            self.classifier = nn.Linear(output_sizes[3], num_classes)
         else:
             # FINN 0.10: QuantConv2d MUST have bias=False !!
-            self.inp = qnn.QuantIdentity()
-            self.conv1 = qnn.QuantConv2d(
-                1,
-                output_sizes[0],
-                3,
-                padding=1,
-                bias=False,
-                weight_bit_width=quantization,
+            layers.append(qnn.QuantIdentity())
+            layers.append(
+                qnn.QuantConv2d(
+                    1,
+                    output_sizes[0],
+                    3,
+                    padding=1,
+                    bias=False,
+                    weight_bit_width=quantization,
+                )
             )
-            self.relu1 = qnn.QuantReLU(bit_width=quantization)
-            self.conv2 = qnn.QuantConv2d(
-                output_sizes[0],
-                output_sizes[1],
-                3,
-                padding=1,
-                bias=False,
-                weight_bit_width=quantization,
+            layers.append(qnn.QuantReLU(bit_width=quantization))
+            layers.append(nn.BatchNorm2d(output_sizes[0]))
+
+            layers.append(
+                qnn.QuantConv2d(
+                    output_sizes[0],
+                    output_sizes[1],
+                    3,
+                    padding=1,
+                    bias=False,
+                    weight_bit_width=quantization,
+                )
             )
-            self.relu2 = qnn.QuantReLU(bit_width=quantization)
-            self.conv3 = qnn.QuantConv2d(
-                output_sizes[1],
-                output_sizes[2],
-                3,
-                padding=1,
-                bias=False,
-                weight_bit_width=quantization,
+            layers.append(qnn.QuantReLU(bit_width=quantization))
+            layers.append(nn.BatchNorm2d(output_sizes[1]))
+
+            layers.append(
+                qnn.QuantConv2d(
+                    output_sizes[1],
+                    output_sizes[2],
+                    3,
+                    padding=1,
+                    bias=False,
+                    weight_bit_width=quantization,
+                )
             )
-            self.relu3 = qnn.QuantReLU(bit_width=quantization)
-            self.fc4 = qnn.QuantLinear(
-                output_sizes[2] * np.prod(self.input_shape),
-                output_sizes[3],
-                bias=True,
-                weight_bit_width=quantization,
+            layers.append(qnn.QuantReLU(bit_width=quantization))
+            layers.append(nn.BatchNorm2d(output_sizes[2]))
+
+            layers.append(nn.Flatten())
+
+            layers.append(
+                qnn.QuantLinear(
+                    output_sizes[2] * np.prod(self.input_shape),
+                    output_sizes[3],
+                    bias=True,
+                    weight_bit_width=quantization,
+                )
             )
-            self.relu4 = qnn.QuantReLU(bit_width=quantization)
-            self.fc5 = qnn.QuantLinear(
+            layers.append(qnn.QuantReLU(bit_width=quantization))
+            layers.append(nn.BatchNorm1d(output_sizes[3]))
+            layers.append(nn.Dropout())
+            layers.append(
+                qnn.QuantIdentity(
+                    bit_width=8,
+                    min_val=0,
+                    max_val=255,
+                )
+            )
+
+            self.classifier = qnn.QuantLinear(
                 output_sizes[3],
                 num_classes,
                 bias=True,
                 weight_bit_width=quantization,
             )
 
+        self.fe = nn.Sequential(*layers)
+
+    def set_finetune(self, finetune: bool):
+        self.finetune = finetune
+        self.fe.requires_grad_(finetune)
+        self.fe.train(not finetune)
+
     def forward(self, x):
         out = torch.reshape(x, (-1, 1, *self.input_shape))
-        out = self.inp(out)
-        out = self.bn1(self.relu1(self.conv1(out)))
-        out = self.bn2(self.relu2(self.conv2(out)))
-        out = self.bn3(self.relu3(self.conv3(out)))
-        out = self.flat(out)
-        out = self.bn4(self.relu4(self.dropout4(self.fc4(out))))
-        logits = self.fc5(out)
+        out = self.fe(out)
+        logits = self.classifier(out)
         return logits
 
     def training_step(self, batch, batch_idx):
         # training_step defines the train loop. It is independent of forward
         x, y_true = batch
         y = self(x)
-        loss = self.loss(y, y_true)
+        loss = F.cross_entropy(y, y_true)
         self.log("train_loss", loss)
         return loss
 
@@ -119,7 +154,7 @@ class EmagerCNN(L.LightningModule):
         # training_step defines the train loop. It is independent of forward
         x, y_true = batch
         y = self(x)
-        loss = self.loss(y, y_true)
+        loss = F.cross_entropy(y, y_true)
         self.log("val_loss", loss)
         return loss
 
@@ -127,7 +162,7 @@ class EmagerCNN(L.LightningModule):
         # training_step defines the train loop. It is independent of forward
         x, y_true = batch
         y = self(x)
-        loss = self.loss(y, y_true)
+        loss = F.cross_entropy(y, y_true)
 
         y = np.argmax(y.cpu().detach().numpy(), axis=1)
         y_true = y_true.cpu().detach().numpy()
@@ -136,21 +171,15 @@ class EmagerCNN(L.LightningModule):
 
         self.log("test_acc", acc)
         self.log("test_loss", loss)
-        return {"acc": acc,"loss": loss, "preds": y}
+        return {"acc": acc, "loss": loss, "preds": y}
 
-    def set_finetune(self):
-        self.conv1.requires_grad = False
-        self.conv2.requires_grad = False
-        self.conv3.requires_grad = False
-        self.fc4.requires_grad = False
-        
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=1e-3)
         return optimizer
 
 
 class EmagerSCNN(L.LightningModule):
-    def __init__(self, quantization=-1, input_shape=(4,16)):
+    def __init__(self, quantization=-1, input_shape=(4, 16)):
         """
         Create a reference Fully Convolutional Siamese Emage model.
 
@@ -162,18 +191,18 @@ class EmagerSCNN(L.LightningModule):
         # Model definition
 
         self.input_shape = input_shape
-        
+
         self.loss = nn.TripletMarginLoss(margin=0.2)
-        
+
         output_sizes = [16, 16, 16, 32, 32]
-        
+
         self.bn1 = nn.BatchNorm2d(output_sizes[0])
         self.bn2 = nn.BatchNorm2d(output_sizes[1])
         self.bn3 = nn.BatchNorm2d(output_sizes[2])
         self.flat = nn.Flatten()
         self.bn4 = nn.BatchNorm1d(output_sizes[3])
         # self.bn5 = nn.BatchNorm1d(output_sizes[4])
-        
+
         if quantization < 0 or quantization >= 32:
             self.inp = nn.Identity()
             self.conv1 = nn.Conv2d(1, output_sizes[0], 3, padding=1)
@@ -208,7 +237,7 @@ class EmagerSCNN(L.LightningModule):
                 weight_bit_width=quantization,
             )
             self.relu1 = qnn.QuantReLU(bit_width=quantization)
-            
+
             self.conv2 = qnn.QuantConv2d(
                 output_sizes[0],
                 output_sizes[1],
@@ -218,7 +247,7 @@ class EmagerSCNN(L.LightningModule):
                 weight_bit_width=quantization,
             )
             self.relu2 = qnn.QuantReLU(bit_width=quantization)
-            
+
             self.conv3 = qnn.QuantConv2d(
                 output_sizes[1],
                 output_sizes[2],
@@ -228,7 +257,7 @@ class EmagerSCNN(L.LightningModule):
                 weight_bit_width=quantization,
             )
             self.relu3 = qnn.QuantReLU(bit_width=quantization)
-            
+
             self.fc4 = qnn.QuantLinear(
                 output_sizes[2] * np.prod(self.input_shape),
                 output_sizes[3],
@@ -236,7 +265,7 @@ class EmagerSCNN(L.LightningModule):
                 weight_bit_width=quantization,
             )
             self.relu4 = qnn.QuantReLU(bit_width=quantization)
-            
+
             self.fc5 = qnn.QuantLinear(
                 output_sizes[3],
                 output_sizes[4],
@@ -244,12 +273,12 @@ class EmagerSCNN(L.LightningModule):
                 weight_bit_width=quantization,
             )
             self.out = qnn.QuantIdentity(
-                bit_width=8, 
-                min_val=0, 
+                bit_width=8,
+                min_val=0,
                 max_val=255,
             )
             # self.relu5 = qnn.QuantReLU(bit_width=quantization)
-            
+
             # self.fc6 = qnn.QuantLinear(
             #     output_sizes[4],
             #     output_sizes[5],
