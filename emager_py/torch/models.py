@@ -27,7 +27,6 @@ class EmagerCNN(L.LightningModule):
         super().__init__()
 
         self.input_shape = input_shape
-        self.finetune = False
 
         output_sizes = [16, 32, 64, 32]
 
@@ -130,11 +129,6 @@ class EmagerCNN(L.LightningModule):
             )
 
         self.fe = nn.Sequential(*layers)
-
-    def set_finetune(self, finetune: bool):
-        self.finetune = finetune
-        self.fe.requires_grad_(finetune)
-        self.fe.train(not finetune)
 
     def forward(self, x):
         out = torch.reshape(x, (-1, 1, *self.input_shape))
