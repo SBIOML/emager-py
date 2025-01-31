@@ -17,7 +17,6 @@ class AppendTopK(nn.Module):
 
 
 def tidy_up(model):
-
     from qonnx.transformation.infer_shapes import InferShapes
     from qonnx.transformation.infer_datatypes import InferDataTypes
     from qonnx.transformation.fold_constants import FoldConstants
@@ -70,7 +69,7 @@ def save_model_as_qonnx(
     return model
 
 
-def save_scnn_model_as_qonnx(
+def save_model_as_qonnx(
     model: nn.Module, out_path: str, input_shape: tuple, datatype: str, show=False
 ):
     from brevitas.export import export_qonnx
