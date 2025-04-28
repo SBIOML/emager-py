@@ -10,26 +10,31 @@ import emager_py.quantization as dq
 
 def default_processing(data: np.ndarray) -> np.ndarray:
     """
-    Expects data of shape (n_gestures, n_reps, n_samples, n_ch), can also accept (n_samples, 64)
-
-    If n_samples < 25, filtering window will be made equal to n_samples.
+    Data with shape (G, R, N, C) or (N, C)
     """
-    data_len = len(data)
+    data = dp.filter_data(data)
     if len(data.shape) == 4:
-        data_len = data.shape[2]
-
-    if data_len < 25:
-        return dp.preprocess_data(data, data_len)
+        emg_mav_shape = list(data.shape)
+        emg_mav_shape[-2] = emg_mav_shape[-2] // get_transform_decimation(
+            dp.extract_mav
+        )
+        emg_mav = np.zeros(emg_mav_shape)
+        for i in range(emg_mav_shape[0]):
+            emg_t = data[i].reshape(-1, 64)
+            emg_mav[i] = dp.extract_mav(emg_t).reshape(*emg_mav_shape[1:])
+        return emg_mav
+    elif len(data.shape) == 2:
+        return dp.extract_mav(data)
     else:
-        return dp.preprocess_data(data)
+        raise ValueError(f"Invalid data shape {data.shape}. Expected 2D or 4D array.")
 
 
 def root_processing(data: np.ndarray) -> np.ndarray:
     """
-    Apply default processing, followed by root-3 quantization
+    Apply default processing, followed by root quantization
     """
     data = default_processing(data)
-    return dq.nroot_c(data, 3.0, 10000).astype(np.uint8)
+    return dq.nroot_c(data, 1.7, 8).astype(np.uint8)
 
 
 def get_transform_decimation(transform: callable):

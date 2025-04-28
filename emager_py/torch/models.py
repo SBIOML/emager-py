@@ -63,7 +63,7 @@ class EmagerCNN(L.LightningModule):
             self.classifier = nn.Linear(output_sizes[4], num_classes)
         else:
             # FINN 0.10: QuantConv2d MUST have bias=False !!
-            layers.append(qnn.QuantIdentity())
+            layers.append(qnn.QuantIdentity(bit_width=8, return_quant_tensor=True))
             layers.append(
                 qnn.QuantConv2d(
                     1,
@@ -200,9 +200,7 @@ class EmagerSCNN(L.LightningModule):
 
         self.input_shape = input_shape
 
-        self.loss = nn.TripletMarginLoss(margin=0.2)
-
-        output_sizes = [16, 16, 16, 32, 32]
+        output_sizes = [32, 32, 32, 32, 32]
 
         self.bn1 = nn.BatchNorm2d(output_sizes[0])
         self.bn2 = nn.BatchNorm2d(output_sizes[1])
@@ -235,7 +233,7 @@ class EmagerSCNN(L.LightningModule):
             #     output_sizes[5],
             # )
         else:
-            self.inp = qnn.QuantIdentity()
+            self.inp = qnn.QuantIdentity(bit_width=8, return_quant_tensor=True)
             self.conv1 = qnn.QuantConv2d(
                 1,
                 output_sizes[0],
@@ -310,14 +308,14 @@ class EmagerSCNN(L.LightningModule):
         # training_step defines the train loop. It is independent of forward
         x1, x2, x3 = batch
         anchor, positive, negative = self(x1), self(x2), self(x3)
-        loss = self.loss(anchor, positive, negative)
+        loss = F.triplet_margin_loss(anchor, positive, negative, margin=0.2)
         self.log("train_loss", loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
         x1, x2, x3 = batch
         anchor, positive, negative = self(x1), self(x2), self(x3)
-        loss = self.loss(anchor, positive, negative, margin=0.2)
+        loss = F.triplet_margin_loss(anchor, positive, negative, margin=0.2)
         self.log("val_loss", loss)
         return loss
 

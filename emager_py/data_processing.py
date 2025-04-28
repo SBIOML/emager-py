@@ -5,6 +5,10 @@ import emager_py.transforms as etrans
 import emager_py.dataset as ed
 import emager_py.quantization as dq
 
+_notch = signal.tf2sos(*signal.iirnotch(60 / 500, 30))
+_bandpass = signal.butter(2, (10 / 500, 350 / 500), btype="band", output="sos")
+_FILTER = np.vstack((_bandpass, _notch))
+
 
 def extract_labels(data_array):
     """
@@ -43,63 +47,27 @@ def extract_labels_and_roll(data, roll_range, v_dim=4, h_dim=16):
     return emg_rolled, labels_rolled
 
 
-def filter_utility(data, fs=1000, Q=30, notch_freq=60):
-    b_notch, a_notch = signal.iirnotch(notch_freq, Q, fs)
-    return signal.filtfilt(b_notch, a_notch, data, axis=0)
+def filter_data(data):
+    """Filter EMG data with `_FILTER`.
 
-
-def preprocess_data(data_array, window_length=25, fs=1000, Q=30, notch_freq=60):
+    `data` must be a numpy array of shape (..., N_samples, N_channels)
     """
-    Given a 2D or 4D data array, preprocess the data by applying notch filter and DC removal.
-    Processing is applied on `window_length` non-overlapping samples.
+    return signal.sosfilt(_FILTER, data, axis=-2)
 
-    @param data: the 4D data array to process, the data array has the format (n_gesture, n_repetition, n_samples, n_channels)
-    @param window_length the length of the time window to use
-    @param fs the sampling frequency of the data
-    @param Q the quality factor of the notch filter
-    @param notch_freq the frequency of the notch filter
 
-    @return the processed 2D or 4D data array
+def extract_mav(data_array, window_length=25):
+    """
+    Given a 2D array, extract the MAV feature.
+
+    @param data: the 2D data to process (N, C)
+
+    @return the processed data with shape (N, C)
     """
 
-    if len(np.shape(data_array)) == 2:
-        total_time_length, nb_channels = np.shape(data_array)
-        nb_window = int(np.floor(total_time_length / window_length))
-        output_data = np.zeros((nb_window, nb_channels))
-        for curr_window in range(nb_window):
-            start = curr_window * window_length
-            end = (curr_window + 1) * window_length
-            processed_data = data_array[start:end, :]
-            processed_data = filter_utility(
-                processed_data, fs=fs, Q=Q, notch_freq=notch_freq
-            )
-            processed_data = np.mean(
-                np.abs(processed_data - np.mean(processed_data, axis=0)), axis=0
-            )
-            output_data[curr_window, :] = processed_data
-
-    elif len(np.shape(data_array)) == 4:
-        labels, nb_exp, total_time_length, nb_channels = np.shape(data_array)
-        nb_window = int(np.floor(total_time_length / window_length))
-
-        output_data = np.zeros((labels, nb_exp, nb_window, nb_channels))
-
-        for label in range(labels):
-            for experiment in range(nb_exp):
-                for curr_window in range(nb_window):
-                    start = curr_window * window_length
-                    end = (curr_window + 1) * window_length
-                    processed_data = data_array[label, experiment, start:end, :]
-                    processed_data = filter_utility(
-                        processed_data, fs=fs, Q=Q, notch_freq=notch_freq
-                    )
-                    processed_data = np.mean(
-                        np.absolute(processed_data - np.mean(processed_data, axis=0)),
-                        axis=0,
-                    )
-                    output_data[label, experiment, curr_window, :] = processed_data
-
-    return output_data
+    data = np.abs(data_array)
+    data_w = np.reshape(data, (window_length, -1, data.shape[-1]))
+    data_aw = np.mean(data_w, 0)
+    return data_aw
 
 
 def roll_data(data_array, rolled_range, v_dim=4, h_dim=16):
@@ -244,14 +212,14 @@ def prepare_lnocv_datasets(
     data_labels = None
     lo_labels = None
     if absda == "train":
-        train_data, data_labels = extract_labels_and_roll(train_data, 2)
+        train_data, data_labels = extract_labels_and_roll(train_data, 1)
         test_data, lo_labels = extract_labels(test_data)
     elif absda == "test":
         train_data, data_labels = extract_labels(train_data)
-        test_data, lo_labels = extract_labels_and_roll(test_data, 2)
+        test_data, lo_labels = extract_labels_and_roll(test_data, 1)
     elif absda == "both":
-        train_data, data_labels = extract_labels_and_roll(train_data, 2)
-        test_data, lo_labels = extract_labels_and_roll(test_data, 2)
+        train_data, data_labels = extract_labels_and_roll(train_data, 1)
+        test_data, lo_labels = extract_labels_and_roll(test_data, 1)
     else:
         train_data, data_labels = extract_labels(train_data)
         test_data, lo_labels = extract_labels(test_data)
