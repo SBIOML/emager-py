@@ -24,7 +24,7 @@ import threading
 
 eutils.set_logging()
 
-MODEL_PATH = "C:\GIT\Datasets/Libemg/TestVideo/libemg_torch_cnn_TestVideo_974_24-07-30_15h18.pth"
+MODEL_PATH = "C:\GIT\Datasets/Libemg/TestVideo/libemg_torch_cnn_TestVideo_829_24-10-28_21h37.pth"
 MEDIA_PATH = "C:\GIT\emager-py\media-test/"
 
 NUM_CLASSES = 5
@@ -153,10 +153,10 @@ def run_predicator(conn: Connection=None):
 
 def run_controller(conn: Connection=None):
     try:
-        zeus_comm = ZeusControl()
+        # zeus_comm = ZeusControl()
         smart_comm = SmartHandControl()
 
-        zeus_comm.connect()
+        # zeus_comm.connect()
         smart_comm.connect()
 
         # Main loop to read input from stdin
@@ -191,12 +191,12 @@ def run_controller(conn: Connection=None):
                 continue
 
             # Send the gesture to the hand
-            zeus_comm.send_gesture(gesture)
+            # zeus_comm.send_gesture(gesture)
             smart_comm.send_gesture(gesture)
     except Exception as e:
         print(f"Error communicator: {e}")
     finally:
-        zeus_comm.disconnect()
+        # zeus_comm.disconnect()
         smart_comm.disconnect()
         print("Communicator Exiting...")
 

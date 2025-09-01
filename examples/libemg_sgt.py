@@ -7,7 +7,7 @@ if __name__ == "__main__":
     from emager_py.utils.find_usb import virtual_port
 
     VIRTUAL = False
-    SESSION = "TestVideo"
+    SESSION = "Testlib2"
     DATAFOLDER = f"C:\GIT\Datasets\Libemg\{SESSION}/"
 
     if VIRTUAL:
@@ -35,3 +35,5 @@ if __name__ == "__main__":
     gui = GUI(args=args, debug=False, width=900, height=800)
     gui.download_gestures([2,3,10,14,18], "media-test/", download_gifs=False)
     gui.start_gui()
+
+    print("Data saved in : " + DATAFOLDER)

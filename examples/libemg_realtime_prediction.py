@@ -22,7 +22,7 @@ from multiprocessing import Lock, Process
 eutils.set_logging()
 
 
-MODEL_PATH = "C:\GIT\Datasets/Libemg/Demo/libemg_torch_cnn_Demo_905_24-07-25_16h44.pth"
+MODEL_PATH = "C:\GIT\Datasets/Libemg/TestVideo/libemg_torch_cnn_TestVideo_829_24-10-28_21h37.pth"
 MEDIA_PATH = "./media-test/"
 
 NUM_CLASSES = 5
