@@ -1,13 +1,14 @@
 import numpy as np
 from scipy import signal
+from scipy.spatial.distance import pdist, cdist
 
 import emager_py.transforms as etrans
 import emager_py.dataset as ed
 import emager_py.quantization as dq
 
 _notch = signal.tf2sos(*signal.iirnotch(60 / 500, 30))
-_bandpass = signal.butter(2, (10 / 500, 350 / 500), btype="band", output="sos")
-_FILTER = np.vstack((_bandpass, _notch))
+_bandpass = signal.butter(3, (10 / 500, 350 / 500), btype="bandpass", output="sos")
+_FILTER = np.vstack((_notch, _bandpass))
 
 
 def extract_labels(data_array):
@@ -47,7 +48,7 @@ def extract_labels_and_roll(data, roll_range, v_dim=4, h_dim=16):
     return emg_rolled, labels_rolled
 
 
-def filter_data(data):
+def filter_data(data: np.ndarray) -> np.ndarray:
     """Filter EMG data with `_FILTER`.
 
     `data` must be a numpy array of shape (..., N_samples, N_channels)
@@ -192,6 +193,7 @@ def prepare_lnocv_datasets(
     test_data: np.ndarray,
     absda="train",
     transform=None,
+    ws=None,
 ):
     """
     Prepare the Leave-N-Out Cross Validation datasets.
@@ -203,26 +205,34 @@ def prepare_lnocv_datasets(
 
     Returns a tuple of ((data, labels), (left_out, left_out_labels)) which can directly be used to create a TensorDataset and DataLoader, for example
     """
+
     if transform is not None:
         if isinstance(transform, str):
             transform = etrans.transforms_lut[transform]
+
         train_data = transform(train_data)
         test_data = transform(test_data)
 
     data_labels = None
     lo_labels = None
     if absda == "train":
-        train_data, data_labels = extract_labels_and_roll(train_data, 1)
+        train_data, data_labels = extract_labels_and_roll(train_data, 2)
         test_data, lo_labels = extract_labels(test_data)
     elif absda == "test":
         train_data, data_labels = extract_labels(train_data)
-        test_data, lo_labels = extract_labels_and_roll(test_data, 1)
+        test_data, lo_labels = extract_labels_and_roll(test_data, 2)
     elif absda == "both":
-        train_data, data_labels = extract_labels_and_roll(train_data, 1)
-        test_data, lo_labels = extract_labels_and_roll(test_data, 1)
+        train_data, data_labels = extract_labels_and_roll(train_data, 2)
+        test_data, lo_labels = extract_labels_and_roll(test_data, 2)
     else:
         train_data, data_labels = extract_labels(train_data)
         test_data, lo_labels = extract_labels(test_data)
+
+    if ws is not None:
+        train_data = train_data.reshape(-1, ws, train_data.shape[-1])
+        test_data = test_data.reshape(-1, ws, test_data.shape[-1])
+        data_labels = data_labels[::ws]
+        lo_labels = lo_labels[::ws]
 
     return (train_data, data_labels), (test_data, lo_labels)
 
@@ -328,10 +338,224 @@ def get_mean_embeddings(embeddings: np.ndarray, labels: np.ndarray, n_classes: i
     """
     ret = np.zeros((n_classes, *embeddings.shape[1:]))
     for unique_y in np.unique(labels):
-        t = np.where(labels == unique_y)[0]
-        batch_sum = np.sum(embeddings[t], axis=0)
+        t = np.nonzero(labels == unique_y)
+        batch_sum = np.mean(embeddings[t], axis=0)
         ret[unique_y] += batch_sum
     return ret
+
+
+def embedding_statistics(embeddings, labels):
+    """
+    Calculate statistics to evaluate embedding quality in terms of class separation.
+
+    Parameters:
+    -----------
+    embeddings : numpy.ndarray
+        Array of embeddings with shape (N_samples, N_features)
+    labels : numpy.ndarray
+        Array of class labels with shape (N_samples,)
+
+    Returns:
+    --------
+    dict
+        Dictionary containing various statistics about the embeddings
+    """
+    # Get unique classes
+    unique_classes = np.unique(labels)
+    n_classes = len(unique_classes)
+
+    # Calculate class centroids
+    centroids = np.zeros((n_classes, embeddings.shape[1]))
+    for i, cls in enumerate(unique_classes):
+        class_indices = np.where(labels == cls)[0]
+        centroids[i] = np.mean(embeddings[class_indices], axis=0)
+
+    # Initialize statistics dictionary
+    stats = {}
+
+    # 1. Intra-class statistics (within-class variation)
+    intra_class_distances = []
+    intra_class_std = []
+    intra_class_variance = []
+
+    for i, cls in enumerate(unique_classes):
+        class_indices = np.where(labels == cls)[0]
+        class_embeddings = embeddings[class_indices]
+
+        # Calculate distances from each point to its class centroid
+        distances = cdist(class_embeddings, [centroids[i]], "euclidean").flatten()
+        intra_class_distances.append(distances)
+
+        # Calculate standard deviation and variance of embeddings within class
+        intra_class_std.append(np.std(class_embeddings, axis=0))
+        intra_class_variance.append(np.var(class_embeddings, axis=0))
+
+    # 2. Inter-class statistics (between-class separation)
+    # Calculate distances between centroids
+    centroid_distances = pdist(centroids, "euclidean")
+
+    # 3. Silhouette-like score (simplified)
+    silhouette_scores = []
+    for i, cls in enumerate(unique_classes):
+        class_indices = np.where(labels == cls)[0]
+        class_embeddings = embeddings[class_indices]
+
+        for j, emb in enumerate(class_embeddings):
+            # Distance to own centroid (a)
+            a = np.linalg.norm(emb - centroids[i])
+
+            # Distances to other centroids
+            other_centroid_distances = [
+                np.linalg.norm(emb - centroids[k]) for k in range(n_classes) if k != i
+            ]
+            # Nearest other centroid distance (b)
+            b = (
+                min(other_centroid_distances)
+                if other_centroid_distances
+                else float("inf")
+            )
+
+            # Silhouette score: (b - a) / max(a, b)
+            if max(a, b) > 0:
+                silhouette_scores.append((b - a) / max(a, b))
+
+    # Compile statistics
+    stats["mean_intra_class_distance"] = np.mean(
+        [np.mean(d) for d in intra_class_distances]
+    )
+    stats["max_intra_class_distance"] = np.max(
+        [np.max(d) for d in intra_class_distances if len(d) > 0]
+    )
+    stats["mean_intra_class_std"] = np.mean([np.mean(s) for s in intra_class_std])
+    stats["mean_intra_class_variance"] = np.mean(
+        [np.mean(v) for v in intra_class_variance]
+    )
+
+    stats["min_inter_class_distance"] = (
+        np.min(centroid_distances) if len(centroid_distances) > 0 else float("inf")
+    )
+    stats["mean_inter_class_distance"] = (
+        np.mean(centroid_distances) if len(centroid_distances) > 0 else float("inf")
+    )
+    stats["max_inter_class_distance"] = (
+        np.max(centroid_distances) if len(centroid_distances) > 0 else float("inf")
+    )
+
+    stats["mean_silhouette_score"] = (
+        np.mean(silhouette_scores) if silhouette_scores else 0
+    )
+
+    # Calculate separation ratio (higher is better)
+    stats["separation_ratio"] = (
+        stats["mean_inter_class_distance"] / stats["mean_intra_class_distance"]
+        if stats["mean_intra_class_distance"] > 0
+        else float("inf")
+    )
+
+    # Fisher's discriminant ratio (simplified for multiple classes)
+    # Higher values indicate better class separation
+    between_class_variance = np.var(centroids, axis=0)
+    avg_within_class_variance = np.mean([np.mean(v) for v in intra_class_variance])
+    stats["fisher_ratio"] = (
+        np.mean(between_class_variance) / avg_within_class_variance
+        if avg_within_class_variance > 0
+        else float("inf")
+    )
+
+    return stats
+
+
+def sample_n_per_class(embeddings, labels, n_samples_per_class):
+    """
+    Randomly sample N samples from each class in the dataset.
+
+    Parameters:
+    -----------
+    embeddings : numpy.ndarray
+        Array of embeddings with shape (N_samples, N_features)
+    labels : numpy.ndarray
+        Array of class labels with shape (N_samples,)
+    n_samples_per_class : int
+        Number of samples to select from each class
+
+    Returns:
+    --------
+    numpy.ndarray
+        Sampled embeddings with shape (n_samples_per_class * n_classes, N_features)
+    numpy.ndarray
+        Corresponding labels with shape (n_samples_per_class * n_classes,)
+    """
+    if n_samples_per_class < 0:
+        n_samples_per_class = len(labels) // len(np.unique(labels))
+
+    # Get unique classes
+    unique_classes = np.unique(labels)
+
+    # Initialize lists to store sampled embeddings and labels
+    sampled_embeddings = []
+    sampled_labels = []
+
+    # For each class, randomly sample n_samples_per_class
+    for cls in unique_classes:
+        # Get indices of samples belonging to the current class
+        class_indices = np.where(labels == cls)[0]
+
+        # If there are fewer samples than requested, take all available samples
+        if len(class_indices) <= n_samples_per_class:
+            selected_indices = class_indices
+        else:
+            # Randomly select n_samples_per_class indices
+            selected_indices = np.random.choice(
+                class_indices, size=n_samples_per_class, replace=False
+            )
+
+        # Add selected embeddings and labels to our lists
+        sampled_embeddings.append(embeddings[selected_indices])
+        sampled_labels.append(labels[selected_indices])
+
+    # Concatenate results
+    sampled_embeddings = np.vstack(sampled_embeddings)
+    sampled_labels = np.concatenate(sampled_labels)
+
+    return sampled_embeddings, sampled_labels
+
+
+def generate_typical_embeddings(embeddings, labels):
+    """
+    Generate typical embeddings for each class by computing the mean embedding vector.
+
+    Parameters:
+    -----------
+    embeddings : numpy.ndarray
+        Array of embeddings with shape (N_samples, N_features)
+    labels : numpy.ndarray
+        Array of class labels with shape (N_samples,)
+
+    Returns:
+    --------
+    numpy.ndarray
+        Array of typical embeddings with shape (n_classes, N_features)
+    numpy.ndarray
+        Array of corresponding class labels with shape (n_classes,)
+    """
+    # Get unique classes
+    unique_classes = np.unique(labels)
+    n_classes = len(unique_classes)
+    n_features = embeddings.shape[1]
+
+    # Initialize array to store typical embeddings
+    typical_embeddings = np.zeros((n_classes, n_features))
+
+    # Compute mean embedding for each class
+    for i, cls in enumerate(unique_classes):
+        # Get indices of samples belonging to the current class
+        class_indices = np.where(labels == cls)[0]
+
+        # Compute mean embedding for the class
+        class_embeddings = embeddings[class_indices]
+        typical_embeddings[i] = np.mean(class_embeddings, axis=0)
+
+    return typical_embeddings, unique_classes
 
 
 def get_n_shot_embeddings(
@@ -361,7 +585,7 @@ def get_n_shot_embeddings(
     for k in np.unique(labels):
         num_k = np.sum([labels == k])
         to_sample_k = np.random.choice(
-            np.where(labels == k)[0],
+            np.nonzero(labels == k),
             min(n_shots, num_k),
             replace=False,
         )

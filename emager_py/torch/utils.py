@@ -21,13 +21,13 @@ def get_all_embeddings(model: nn.Module, dataloader: DataLoader, device):
     model.eval()
     embeddings = None
     targets = np.zeros((0,), dtype=np.uint8)
-    with torch.no_grad():
-        for i, (input, target) in enumerate(dataloader):
+    for i, (input, target) in enumerate(dataloader):
+        with torch.no_grad():
             output = model(input.to(device))
-            if i == 0:
-                embeddings = np.zeros((0, output.shape[1]))
-            embeddings = np.append(embeddings, output.detach().cpu().numpy(), axis=0)
-            targets = np.append(targets, target.detach().cpu().numpy())
+        if i == 0:
+            embeddings = np.zeros((0, output.shape[1]))
+        embeddings = np.append(embeddings, output.detach().cpu().numpy(), axis=0)
+        targets = np.append(targets, target.detach().cpu().numpy())
     return embeddings, targets
 
 

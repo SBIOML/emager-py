@@ -8,6 +8,22 @@ import emager_py.data_processing as dp
 import emager_py.quantization as dq
 
 
+def filter_rect_processing(data: np.ndarray) -> np.ndarray:
+    """
+    Apply default processing, followed by rectification
+    """
+    data = np.abs(dp.filter_data(data))
+    return data
+
+
+def filter_rect_u8_processing(data: np.ndarray) -> np.ndarray:
+    """
+    Apply filtering, rectification and root u8 quantization
+    """
+    data = np.abs(dp.filter_data(data))
+    return dq.nroot_c(data, 1.7, 8).astype(np.uint8)
+
+
 def default_processing(data: np.ndarray) -> np.ndarray:
     """
     Data with shape (G, R, N, C) or (N, C)
@@ -50,4 +66,6 @@ def get_transform_decimation(transform: callable):
 transforms_lut = {
     "default": default_processing,
     "root": root_processing,
+    "filter_rect": filter_rect_processing,
+    "filter_rect_u8": filter_rect_u8_processing,
 }

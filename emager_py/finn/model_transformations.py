@@ -36,41 +36,7 @@ def tidy_up(model):
 
 
 def save_model_as_qonnx(
-    model: nn.Module, out_path: str, input_shape: tuple, datatype: str, show=False
-):
-    from brevitas.export import export_qonnx
-    from qonnx.util.cleanup import cleanup as qonnx_cleanup
-    from qonnx.core.modelwrapper import ModelWrapper
-    from qonnx.core.datatype import DataType
-    from qonnx.transformation.insert_topk import InsertTopK
-    from finn.transformation.qonnx.convert_qonnx_to_finn import ConvertQONNXtoFINN
-
-    model.cpu()
-    export_qonnx(model, export_path=out_path, input_t=torch.randn(1, 1, *input_shape))
-    qonnx_cleanup(out_path, out_file=out_path)
-    model: ModelWrapper
-    model = ModelWrapper(out_path)
-    model = model.transform(ConvertQONNXtoFINN())
-    model = tidy_up(model)
-    model.set_tensor_datatype(model.graph.input[0].name, DataType[datatype])
-    # model = model.transform(InsertTopK(k=1))
-    model = tidy_up(model)
-    model.save(out_path)
-
-    log.info("Model saved to %s" % out_path)
-
-    # Visualize if you want
-    if show:
-        from finn.util.visualization import showSrc, showInNetron
-
-        showInNetron(out_path)
-        print("Netron served at 172.17.0.2:8081")
-
-    return model
-
-
-def save_model_as_qonnx(
-    model: nn.Module, out_path: str, input_shape: tuple, datatype: str, show=False
+    model: nn.Module, out_path: str, input_shape: tuple, datatype: str, show=False, ws=1
 ):
     from brevitas.export import export_qonnx
     from qonnx.util.cleanup import cleanup as qonnx_cleanup
@@ -79,13 +45,14 @@ def save_model_as_qonnx(
     from finn.transformation.qonnx.convert_qonnx_to_finn import ConvertQONNXtoFINN
 
     model.cpu()
-    export_qonnx(model, export_path=out_path, input_t=torch.randn(1, 1, *input_shape))
+    export_qonnx(model, export_path=out_path, input_t=torch.randn(1, ws, *input_shape))
     qonnx_cleanup(out_path, out_file=out_path)
     model: ModelWrapper
     model = ModelWrapper(out_path)
     model = model.transform(ConvertQONNXtoFINN())
     model = tidy_up(model)
     model.set_tensor_datatype(model.graph.input[0].name, DataType[datatype])
+    model.set_tensor_datatype(model.graph.output[-1].name, DataType["UINT8"])
     model = tidy_up(model)
     model.save(out_path)
 

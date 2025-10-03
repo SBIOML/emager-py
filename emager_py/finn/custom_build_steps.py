@@ -164,8 +164,8 @@ def default_finn_flow_custom_ip() -> list:
         step_insert_properties,
         step_insert_ip_into_bd,
         *build_cfg.default_build_dataflow_steps[-3:],
-        step_copy_finn_bd,
-        step_deploy_to_pynq,
+        # step_copy_finn_bd,
+        # step_deploy_to_pynq,
     ]
     log.info(f"FINN Build Steps: {steps}")
     return steps

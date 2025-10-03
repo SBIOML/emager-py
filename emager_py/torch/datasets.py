@@ -3,6 +3,7 @@ import numpy as np
 import logging as log
 import torch
 from torch.utils.data import DataLoader, TensorDataset
+from torchvision.transforms import v2
 
 from emager_py import dataset as ed
 from emager_py import emager_redis as er
@@ -27,12 +28,11 @@ def _get_generic_dataloaders(
 
     Returns a tuple of (train_dataloader, test_dataloader)
     """
-    train_set = TensorDataset(
-        torch.from_numpy(train_data.astype(np.float32)), torch.from_numpy(train_labels)
-    )
-    test_set = TensorDataset(
-        torch.from_numpy(test_data.astype(np.float32)), torch.from_numpy(test_labels)
-    )
+    train_data = torch.from_numpy(train_data.astype(np.float32))
+    train_set = TensorDataset(train_data, torch.from_numpy(train_labels))
+
+    test_data = torch.from_numpy(test_data.astype(np.float32))
+    test_set = TensorDataset(test_data, torch.from_numpy(test_labels))
 
     log.info(f"Train set length: {len(train_set)}, Test set length: {len(test_set)}")
 
@@ -61,6 +61,7 @@ def get_lnocv_dataloaders(
     train_batch=64,
     test_batch=256,
     emg_shape=(4, 16),
+    ws=None,
 ):
     """
     Load LNOCV datasets from disk and return DataLoader instances for training and testing.
@@ -73,13 +74,15 @@ def get_lnocv_dataloaders(
         left_out_rep = [left_out_rep]
 
     data, lo = ed.get_lnocv_datasets(dataset_path, subject, session, left_out_rep)
+
     (train_data, train_labels), (test_data, test_labels) = dp.prepare_lnocv_datasets(
-        data, lo, absda, transform
+        data, lo, absda, transform, ws
     )
+
     return _get_generic_dataloaders(
-        train_data.reshape((-1, 1, *emg_shape)),
+        train_data.reshape((*train_data.shape[0:-1], *emg_shape)),
         train_labels,
-        test_data.reshape((-1, 1, *emg_shape)),
+        test_data.reshape((*test_data.shape[0:-1], *emg_shape)),
         test_labels,
         train_batch,
         test_batch,
@@ -147,8 +150,10 @@ def get_triplet_dataloaders(
     (train_data, train_labels), (test_intra_data, test_intra_labels) = (
         dp.prepare_lnocv_datasets(train_data, test_intra_data, absda, transform)
     )
+
     train_data = train_data.astype(np.float32)
     test_intra_data = test_intra_data.astype(np.float32)
+
     calib_intra_dl, test_intra_dl = _get_generic_dataloaders(
         train_data.reshape((-1, 1, *emg_shape)),
         train_labels,
@@ -159,7 +164,7 @@ def get_triplet_dataloaders(
         "none",
     )
 
-    # Generate triplets
+    # Generate triplets from training subset
     train_triplets = dp.generate_triplets(train_data, train_labels, n_triplets)
     train_triplets = [
         torch.from_numpy(t).reshape((-1, 1, *emg_shape)) for t in train_triplets
