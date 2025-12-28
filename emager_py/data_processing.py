@@ -215,15 +215,17 @@ def prepare_lnocv_datasets(
 
     data_labels = None
     lo_labels = None
+    v_dim = 4 if train_data.shape[1] == 64 else 8
+    h_dim = 16
     if absda == "train":
-        train_data, data_labels = extract_labels_and_roll(train_data, 2)
+        train_data, data_labels = extract_labels_and_roll(train_data, 2, v_dim, h_dim)
         test_data, lo_labels = extract_labels(test_data)
     elif absda == "test":
         train_data, data_labels = extract_labels(train_data)
-        test_data, lo_labels = extract_labels_and_roll(test_data, 2)
+        test_data, lo_labels = extract_labels_and_roll(test_data, 2, v_dim, h_dim)
     elif absda == "both":
-        train_data, data_labels = extract_labels_and_roll(train_data, 2)
-        test_data, lo_labels = extract_labels_and_roll(test_data, 2)
+        train_data, data_labels = extract_labels_and_roll(train_data, 2, v_dim, h_dim)
+        test_data, lo_labels = extract_labels_and_roll(test_data, 2, v_dim, h_dim)
     else:
         train_data, data_labels = extract_labels(train_data)
         test_data, lo_labels = extract_labels(test_data)

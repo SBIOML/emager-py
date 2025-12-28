@@ -153,8 +153,11 @@ def load_emager_data(dataset_path, subject, session, differential=False, floor_t
             gest_rep_arrays.append(new_data)
             if len(new_data) < nb_pts:
                 nb_pts = len(new_data)
+
     nb_pts = nb_pts - (nb_pts % floor_to)
-    data_array = np.zeros((nb_gesture, nb_repetition, 64, nb_pts), dtype=int)
+    n_ch = gest_rep_arrays[0].shape[-1]
+
+    data_array = np.zeros((nb_gesture, nb_repetition, n_ch, nb_pts), dtype=int)
 
     for gest in range(nb_gesture):
         for rep in range(nb_repetition):

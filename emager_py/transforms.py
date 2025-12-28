@@ -53,6 +53,14 @@ def root_processing(data: np.ndarray) -> np.ndarray:
     return dq.nroot_c(data, 1.7, 8).astype(np.uint8)
 
 
+def smart_processing(data: np.ndarray) -> np.ndarray:
+    """
+    Apply default processing, followed by root quantization
+    """
+    data = default_processing(data)
+    return dq.smart_bitshift_c(data, 8, 3).astype(np.uint8)
+
+
 def get_transform_decimation(transform: callable):
     """
     Get the decimation factor of SigProc function `transform`.
